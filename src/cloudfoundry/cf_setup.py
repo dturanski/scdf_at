@@ -4,10 +4,6 @@ from cloudfoundry.environment import Tile, Standalone
 logger = logging.getLogger(__name__)
 
 
-def setup_tile(cf, config, options):
-    logger.info("setting up the CF environment for platform %s and binder %a" % (options.platform, options.binder))
-
-
 def setup(cf, config, options):
     if options.platform == "tile":
         return Tile.setup(cf, config, options)

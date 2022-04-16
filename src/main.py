@@ -5,7 +5,7 @@ from cloudfoundry.cli import CloudFoundry
 from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryConfig, DataflowConfig, SkipperConfig, \
     DatasourceConfig
 from optparse import OptionParser
-from cloudfoundry import cf_setup
+from cloudfoundry import cf_setup,cf_clean
 import json_fix
 
 json_fix.patch()
@@ -54,6 +54,8 @@ def clean(args):
         print("cleaning up apps...")
         if not options.serverCleanup:
             print("cleaning services ...")
+            cf_clean.clean(cf, cf_config_from_env(), options)
+
 
     except SystemExit:
         parser.print_help()

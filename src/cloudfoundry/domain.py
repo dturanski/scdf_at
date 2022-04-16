@@ -1,7 +1,19 @@
 import json
 
 
-class App(json.JSONEncoder):
+class JSonEnabled(json.JSONEncoder):
+    def __json__(self):
+        dict = self.__dict__
+        for k,v in dict.items():
+            if 'password' in k or 'secret' in k:
+                dict[k] = "*************" if v else None
+        return dict
+
+    def __str__(self):
+        return json.dumps(self)
+
+
+class App(JSonEnabled):
     def __init__(self, name, requested_state, instances, memory, disk, urls):
         self.name = name
         self.requested_state = requested_state
@@ -10,11 +22,8 @@ class App(json.JSONEncoder):
         self.disk = disk
         self.urls = urls
 
-    def __json__(self):
-        return self.__dict__
 
-
-class Service(json.JSONEncoder):
+class Service(JSonEnabled):
 
     def __init__(self, name, service, plan, status, message):
         self.name = name
@@ -22,6 +31,3 @@ class Service(json.JSONEncoder):
         self.plan = plan
         self.status = status
         self.message = message
-
-    def __json__(self):
-        return self.__dict__

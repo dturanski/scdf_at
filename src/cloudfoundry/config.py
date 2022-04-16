@@ -1,26 +1,10 @@
-import json, os
-import logging
+import os, json, logging
+from cloudfoundry.domain import JSonEnabled
 
 logger = logging.getLogger(__name__)
 
 
-class Environment:
-    def __init__(self, env={}):
-        self.env = env
-
-    def add_all(self, env):
-        self.env = {**self.env, **env}
-        return self.env
-
-    def get(self, key):
-        return self.env[key]
-
-    def put(self, key, value):
-        self.env[key] = value
-        return self.env
-
-
-class CloudFoundryDeployerConfig(json.JSONEncoder):
+class CloudFoundryDeployerConfig(JSonEnabled):
 
     @classmethod
     def from_spring_env_vars(self):
@@ -49,7 +33,7 @@ class CloudFoundryDeployerConfig(json.JSONEncoder):
                                           props=deployer_props)
 
     def __init__(self, api_endpoint, org, space, app_domain, username, password,
-                 skipSslValidation=True, props={}):
+                 skipSslValidation=True, props={}, deploy_wait_sec=20, max_retries=150):
         self.api_endpoint = api_endpoint
         self.org = org
         self.space = space
@@ -57,6 +41,8 @@ class CloudFoundryDeployerConfig(json.JSONEncoder):
         self.app_domain = app_domain
         self.username = username
         self.password = password
+        self.deploy_wait_sec = deploy_wait_sec
+        self.max_retries = max_retries
         self.props = props
         # Task services are optional if using an external DB.
         task_services_key = "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_TASK_SERVICES"
@@ -77,16 +63,8 @@ class CloudFoundryDeployerConfig(json.JSONEncoder):
         if not self.password:
             raise ValueError("'password' is required")
 
-    def log_masked(self):
-        logger.info("Using configuration:\n" + json.dumps(self, indent=4, sort_keys=True))
 
-    def __json__(self):
-        dict = self.__dict__
-        dict['password'] = "*******" if dict['password'] else "null"
-        return dict
-
-
-class DatasourceConfig(json.JSONEncoder):
+class DatasourceConfig(JSonEnabled):
     @classmethod
     def from_spring_env_vars(cls):
 
@@ -116,11 +94,6 @@ class DatasourceConfig(json.JSONEncoder):
                 DatasourceConfig.DRIVER_CLASS_NAME_KEY: self.DRIVER_CLASS_NAME_KEY
                 }
 
-    def __json__(self):
-        dict = self.__dict__
-        dict['password'] = "*******" if dict['password'] else "null"
-        return dict
-
     def validate(self):
         if not self.url:
             raise ValueError("'url' is required")
@@ -132,16 +105,13 @@ class DatasourceConfig(json.JSONEncoder):
             raise ValueError("'driver_class_name' is required")
 
 
-class ServiceConfig(json.JSONEncoder):
+class ServiceConfig(JSonEnabled):
     def __init__(self, name, service, plan, config=None):
         self.name = name
         self.service = service
         self.plan = plan
         self.config = config
         self.validate()
-
-    def __json__(self):
-        return self.__dict__
 
     def __eq__(self, other):
         if isinstance(other, ServiceConfig):
@@ -174,11 +144,8 @@ class ServiceConfig(json.JSONEncoder):
             except BaseException:
                 raise ValueError("config is not valid json:" + self.config)
 
-    def __json__(self):
-        return self.__dict__
 
-
-class DataflowConfig:
+class DataflowConfig(JSonEnabled):
     TASK_SERVICES_KEY = 'TASK_SERVICES'
     APPLICATION_NAME_KEY = 'SPRING_APPLICATION_NAME'
     PROFILES_ACTIVE_KEY = 'SPRING_PROFILES_ACTIVE'
@@ -197,12 +164,12 @@ class DataflowConfig:
         self.spring_application_json = spring_application_json
 
 
-class SkipperConfig(CloudFoundryDeployerConfig):
+class SkipperConfig(JSonEnabled):
     STREAM_SERVICES_KEY = 'STREAM_SERVICES'
     PROFILES_ACTIVE_KEY = 'SPRING_PROFILES_ACTIVE'
 
 
-class CloudFoundryConfig(json.JSONEncoder):
+class CloudFoundryConfig(JSonEnabled):
     def __init__(self, deployer_config, db_config=None, dataflow_config=None, skipper_config=None,
                  services_config=[ServiceConfig.rabbit_default()], deploy_wait_sec=10, max_retries=150):
         self.deployer_config = deployer_config
@@ -210,8 +177,6 @@ class CloudFoundryConfig(json.JSONEncoder):
         self.dataflow_config = dataflow_config
         self.skipper_config = skipper_config
         self.services_config = services_config
-        self.deploy_wait_sec = deploy_wait_sec
-        self.max_retries = max_retries
         self.validate()
         if self.dataflow_config and self.dataflow_config.schedules_enabled and self.services_config:
             if not [service for service in self.services_config if service.plan == "scheduler-for-pcf"]:
@@ -220,9 +185,6 @@ class CloudFoundryConfig(json.JSONEncoder):
                 self.services_config = services_config.append(scheduler_service)
         if not len(self.deployer_config.task_services) and not self.db_config:
             logger.error("We have a problem:Neither task Services nor an external DB are configured.")
-
-    def __json__(self):
-        return self.__dict__
 
     def validate(self):
         if not self.deployer_config:

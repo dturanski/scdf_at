@@ -1,7 +1,6 @@
-import logging, json, time,re
+import logging, json, time, re
 from shell.core import Shell, Utils
 from cloudfoundry.domain import App, Service
-
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,8 @@ class CloudFoundry:
         cf = CloudFoundry(deployer_config)
 
         if not CloudFoundry.initialized:
-            logger.debug("logging in to CF: api %s org %s space %s" % (deployer_config.api_endpoint, deployer_config.org, deployer_config.space))
+            logger.debug("logging in to CF: api %s org %s space %s" % (
+                deployer_config.api_endpoint, deployer_config.org, deployer_config.space))
             proc = cf.login()
             if proc.returncode != 0:
                 logger.error("CF login failed:" + Utils.stdout_to_s(proc))
@@ -43,7 +43,8 @@ class CloudFoundry:
             raise RuntimeError('cf cli is not installed')
 
         target = self.current_target()
-        if target and target['api endpoint'] == deployer_config.api_endpoint and target['org'] == deployer_config.org and target[
+        if target and target['api endpoint'] == deployer_config.api_endpoint and target[
+            'org'] == deployer_config.org and target[
             'space'] == deployer_config.space:
             CloudFoundry.initialized = True
 
@@ -97,8 +98,7 @@ class CloudFoundry:
                skip_ssl)
         return self.shell.exec(cmd)
 
-
-    def create_service(self, config, service_config):
+    def create_service(self, service_config):
         logger.info("creating service " + json.dumps(service_config))
 
         proc = self.shell.exec("cf create-service %s %s %s %s" %
@@ -108,24 +108,34 @@ class CloudFoundry:
         if self.shell.dry_run:
             return proc
 
-        tries = 0
-        service = self.service(service_config.name)
-        # TODO:  pull this out to a common function
-        while service.status != 'create succeeded' and tries < config.max_retries:
-            time.sleep(config.deploy_wait_sec)
-            tries = tries + 1
-            logging.info("waiting %d/%d for service %s" % (tries, config.max_retries, json.dumps(service)))
-            service = self.service(service_config.name)
+        if proc.returncode:
+            logger.error(Utils.stdout_to_s(proc))
+            return proc
 
-        if service.status != 'create succeeded':
-            raise SystemExit("maximum tries %d exceeded waiting for service %s" %
-                             (config.max_retries, json.dumps(service)))
+        if not self.wait_for(condition=lambda: self.service(service_config.name).status == 'create succeeded',
+                             wait_message="waiting for service status 'create succeeded'"):
+            raise SystemExit("FATAL: unable to create service %s" % service_config)
         else:
-            logging.info("Created:" + json.dumps(service))
+            logger.info("created service %s" % service_config.name)
         return proc
 
-    def delete_service(self):
-        pass
+    def delete_service(self, service_name):
+        logger.info("deleting service %s" % service_name)
+
+        proc = self.shell.exec("cf delete-service -f %s" % service_name)
+        Utils.log_stdout(proc)
+        if self.shell.dry_run:
+            return proc
+        if proc.returncode:
+            logger.error(Utils.stdout_to_s(proc))
+            return proc
+
+        if not self.wait_for(condition=lambda: self.service(service_name) is None,
+                             wait_message="waiting for %s to be deleted" % service_name):
+            raise SystemExit("FATAL: %s " % str(self.service(service_name)))
+        else:
+            logger.info("deleted service %s" % service_name)
+        return proc
 
     def create_service_key(self):
         pass
@@ -152,10 +162,10 @@ class CloudFoundry:
             proc = self.shell.exec("cf delete -f %s" % app)
             Utils.log_command(proc, "executed");
 
-    def service(self,service_name):
+    def service(self, service_name):
         proc = self.shell.exec("cf service " + service_name)
         if proc.returncode != 0:
-            logger.error("service %s does not exist, or there is some other issue.")
+            logger.debug("service %s does not exist, or there is some other issue." % service_name)
             return None
 
         contents = Utils.stdout_to_s(proc)
@@ -167,10 +177,10 @@ class CloudFoundry:
             if match:
                 s[match[1].strip()] = match[2].strip()
 
-        return Service(name = s.get('name'),
+        return Service(name=s.get('name'),
                        service=s.get('service'),
                        plan=s.get('plan'),
-                       status = s.get('status'),
+                       status=s.get('status'),
                        message=s.get('message'))
 
     def services(self):
@@ -192,3 +202,26 @@ class CloudFoundry:
 
         logger.debug("services:\n" + json.dumps(services, indent=4))
         return services
+
+    def wait_for(self, condition=True, args=[], wait_sec=None,
+                 max_retries=None,
+                 wait_message="waiting for condition to be satisfied",
+                 success_message="condition satisfied",
+                 fail_message="FAILED: condition not satisfied"):
+        tries = 0
+        if not wait_sec:
+            wait_sec = self.deployer_config.deploy_wait_sec
+        if not max_retries:
+            max_retries = self.deployer_config.max_retries
+
+        predicate = condition(*args)
+        while not predicate and tries < max_retries:
+            time.sleep(wait_sec)
+            tries = tries + 1
+            logger.info("%d/%d %s" % (tries, max_retries, wait_message))
+            predicate = condition(*args)
+            if predicate:
+                logger.info(success_message)
+            else:
+                logger.error(fail_message)
+        return predicate
