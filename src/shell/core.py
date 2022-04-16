@@ -1,6 +1,8 @@
 import subprocess
 import shlex
+import logging
 
+logger = logging.getLogger(__name__)
 
 class Shell:
     def __init__(self, dry_run=False):
@@ -9,9 +11,10 @@ class Shell:
     def exec(self, cmd):
         args = shlex.split(cmd)
         if self.dry_run:
-            return subprocess.CompletedProcess(args, 0)
+            proc = subprocess.CompletedProcess(args, 0)
+            return proc
         else:
-            return subprocess.run(shlex.split(cmd), capture_output=True)
+            return subprocess.run(args, capture_output=True)
 
 
 class Utils:
@@ -22,12 +25,12 @@ class Utils:
 
     @classmethod
     def stdout_to_s(cls, completed_proc):
-        return completed_proc.stdout.decode()
+        return completed_proc.stdout.decode() if completed_proc.stdout else ""
 
     @classmethod
     def log_stderr(cls, completed_proc):
-        print(completed_proc.stdout.decode())
+        logger.info(completed_proc.stderr.decode() if completed_proc.stdout else "")
 
     @classmethod
     def log_command(cls, completed_proc, msg=""):
-        print(msg + ": " + shlex.join(completed_proc.args))
+        logger.info(msg + ": " + shlex.join(completed_proc.args))

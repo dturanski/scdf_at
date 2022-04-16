@@ -1,14 +1,23 @@
 import sys, os, logging
 
-sys.path.append(os.path.join(sys.path[0], "src"))
+sys.path.append(os.path.join(sys.path[0], ""))
 from cloudfoundry.cli import CloudFoundry
-from cloudfoundry.config import CloudFoundryConfig
-from shell.core import Shell, Utils
+from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryConfig, DataflowConfig, SkipperConfig, \
+    DatasourceConfig
 from optparse import OptionParser
+from cloudfoundry import cf_setup
+import json_fix
 
-CF_INITIALIZED = False
-logging.basicConfig(level=logging.DEBUG, format='%(name)s - %(asctime)s - %(levelname)s:  %(message)s')
-logger = logging.getLogger(__name__)
+json_fix.patch()
+logging.basicConfig(level=logging.INFO, format='%(name)s - %(asctime)s - %(levelname)s:  %(message)s')
+
+def enable_debug_logging():
+    level = logging.DEBUG
+    logger = logging.getLogger()
+    logger.setLevel(level)
+    for handler in logger.handlers:
+        handler.setLevel(level)
+    logger.debug("DEBUG logging enabled")
 
 
 def parse_run_task(args):
@@ -28,37 +37,36 @@ def clean(args):
     parser = OptionParser()
     parser.usage = "%prog clean options"
 
+    parser.add_option('-v', '--debug',
+                      help='debug level logging',
+                      dest='debug', default=False, action='store_true')
     parser.add_option('-p', '--platform',
                       help='the platform type (cloudfoundry, tile)',
                       dest='platform', default='cloudfoundry')
     parser.add_option('--serverCleanup',
-                      help='run the cleanup for only SCDF and Skipper, along with the applications deployed but excluding the DB, message broker',
+                      help='run the cleanup for the apps, but excluding services',
                       dest='serverCleanup', action='store_true')
     try:
         options, arguments = parser.parse_args(args)
         print(options)
         print(arguments)
-        cf = CloudFoundry.connect(cf_config())
+        cf = CloudFoundry.connect(cf_config_from_env().deployer_config)
         print("cleaning up apps...")
         if not options.serverCleanup:
             print("cleaning services ...")
-
 
     except SystemExit:
         parser.print_help()
         sys.exit(1)
 
 
-def cf_config():
-    config = CloudFoundryConfig(api_endpoint=os.getenv("SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_URL"),
-                                org=os.getenv("SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_ORG"),
-                                space=os.getenv("SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_SPACE"),
-                                app_domain=os.getenv("SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_DOMAIN"),
-                                username=os.getenv("SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_USERNAME"),
-                                password=os.getenv("SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD"),
-                                skipSslValidation=os.getenv(
-                                    "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_SKIP_SSL_VALIDATION"))
-    return config
+def cf_config_from_env():
+
+    deployer_config = CloudFoundryDeployerConfig.from_spring_env_vars()
+    db_config = DatasourceConfig.from_spring_env_vars()
+
+    return CloudFoundryConfig(deployer_config=deployer_config, db_config=db_config,
+                              dataflow_config=DataflowConfig())
 
 
 def setup(args):
@@ -68,25 +76,28 @@ def setup(args):
     parser.add_option('-p', '--platform',
                       help='the platform type (cloudfoundry, tile)',
                       dest='platform', default='cloudfoundry')
-
+    parser.add_option('-v', '--debug',
+                      help='debug level logging',
+                      dest='debug', default=False, action='store_true')
     parser.add_option('-b', '--binder',
                       help='the broker type for stream apps(rabbit, kafka)',
                       dest='binder', default='rabbit')
-
     parser.add_option('--se', '--schedulesEnabled',
                       help='cleans the scheduling infrastructure',
                       dest='schedulesEnabled', action='store_true')
-
     parser.add_option('-d', '--doNotDownload',
                       help='skip the downloading of the SCDF/Skipper servers',
                       dest='doNotDownload', action='store_true')
-
+    # TODO: This needs work, but here for legacy reasons
+    parser.add_option('--cc', '--skipCloudConfig',
+                      help='skip configuration of Cloud Config server',
+                      dest='cloudConfig', default=True, action='store_false')
     try:
         options, arguments = parser.parse_args(args)
-        logger.info("setting up the CF environment for platform %s and binder %a" % (options.platform, options.binder))
-        cf = CloudFoundry.connect(cf_config())
-        cf.config.log_masked()
-        cf.services()
+        if options.debug:
+            enable_debug_logging()
+        cf = CloudFoundry.connect(cf_config_from_env().deployer_config)
+        cf_setup.setup(cf, cf_config_from_env(), options)
 
     except SystemExit:
         parser.print_help()
@@ -103,5 +114,5 @@ if __name__ == '__main__':
     elif run_task == 'setup':
         setup(sys.argv)
     else:
-        print("Invalid task specified:" + run_task)
+        print("Invalid task specified:" + str(run_task))
         exit(1);
