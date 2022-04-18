@@ -12,6 +12,7 @@ class Shell:
     def exec(self, cmd):
         args = shlex.split(cmd)
         if self.dry_run:
+            logger.info("dry_run: " + cmd)
             proc = subprocess.CompletedProcess(args, 0)
             return proc
         else:

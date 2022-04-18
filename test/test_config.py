@@ -1,9 +1,6 @@
 import unittest
-from cloudfoundry.config import CloudFoundryDeployerConfig, ServiceConfig, CloudFoundryConfig, DataflowConfig, \
-    DatasourceConfig, SkipperConfig
-import json_fix
-json_fix.patch()
+from cloudfoundry.config import DatasourceConfig
 
 class TestConfig(unittest.TestCase):
-    def test_dataflow_config(self):
+    def test_datasource_config(self):
         pass

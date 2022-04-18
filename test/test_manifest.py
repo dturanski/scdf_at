@@ -1,12 +1,6 @@
 import unittest, optparse, logging, json
-from cloudfoundry.manifest import create_for_scdf, create_for_skipper, spring_application_json
-from cloudfoundry.config import CloudFoundryDeployerConfig, ServiceConfig, CloudFoundryConfig, DataflowConfig, \
-    DatasourceConfig, SkipperConfig
-import json_fix
-
-json_fix.patch()
-
-logging.basicConfig(level=logging.DEBUG, format='%(name)s - %(asctime)s - %(levelname)s:  %(message)s')
+from cloudfoundry.manifest import create_for_scdf, spring_application_json
+from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryConfig, DataflowConfig
 
 logger = logging.getLogger(__name__)
 

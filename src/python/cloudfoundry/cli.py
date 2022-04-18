@@ -2,7 +2,7 @@ import json
 import logging
 import re
 import time
-from shell import Shell
+from scdf_at.shell import Shell
 from cloudfoundry.domain import Service
 from cloudfoundry.config import TestConfig
 

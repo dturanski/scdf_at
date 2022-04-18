@@ -36,11 +36,10 @@ class CloudFoundryDeployerConfig(JSonEnabled):
     skip_ssl_validation_key = prefix + "SKIP_SSL_VALIDATION"
 
     @classmethod
-    def from_spring_env_vars(cls):
+    def from_env_vars(cls):
         env = env_vars(cls.prefix)
         if not env.get(cls.url_key):
-            logger.error(cls.url_key + " is not configured in environment")
-            return None
+            raise ValueError(cls.url_key + " is not configured in environment")
 
         return CloudFoundryDeployerConfig(api_endpoint=env.get(cls.url_key),
                                           org=env.get(cls.org_key),
@@ -84,31 +83,47 @@ class CloudFoundryDeployerConfig(JSonEnabled):
             raise ValueError("'password' is required")
 
 
+class DBConfig(JSonEnabled):
+    prefix = "SQL_"
+
+    @classmethod
+    def from_env_vars(cls):
+        env = env_vars(cls.prefix)
+        if not env.get(cls.prefix + 'HOST'):
+            logger.warning("%s is not defined in the OS environment" % (cls.prefix + 'HOST'))
+            return None
+
+        return DBConfig(host=env.get(cls.prefix + 'HOST'),
+                        port=env.get(cls.prefix + 'PORT'),
+                        username=env.get(cls.prefix + 'USERNAME'),
+                        password=env.get(cls.prefix + 'PASSWORD'),
+                        provider=env.get(cls.prefix + 'PROVIDER'),
+                        index=env.get(cls.prefix + 'INDEX'))
+
+    def __init__(self, host, port, username, password, provider, index='0'):
+        self.host = host
+        self.port = port
+        self.username = username
+        self.password = password
+        self.provider = provider
+        self.index = index
+
+
 class DatasourceConfig(JSonEnabled):
-    prefix = "SPRING_DATA_SOURCE_"
+    prefix = "SPRING_DATASOURCE_"
     url_key = prefix + "URL"
     username_key = prefix + "USERNAME"
     password_key = prefix + "PASSWORD"
-    driver_class_name_key = prefix + 'SPRING_DATASOURCE_DRIVER_CLASS_NAME'
+    driver_class_name_key = prefix + 'DRIVER_CLASS_NAME'
 
-    @classmethod
-    def from_spring_env_vars(cls):
-        env = env_vars(cls.prefix)
-
-        if not env.get(cls.url_key):
-            logger.warning(cls.url_key + " is not set in the OS environment.")
-            return None
-
-        return DatasourceConfig(url=env.get(cls.url_key),
-                                username=env.get(cls.username_key),
-                                password=env.get(cls.password_key),
-                                driver_class_name=env.get(cls.driver_class_name_key))
-
-    def __init__(self, url, username, password, driver_class_name):
+    def __init__(self, url, username, password, driver_class_name, host, port, provider):
         self.url = url
         self.username = username
         self.password = password
         self.driver_class_name = driver_class_name
+        self.host = host
+        self.port = port
+        self.provider = provider
 
     def validate(self):
         if not self.url:
@@ -119,6 +134,13 @@ class DatasourceConfig(JSonEnabled):
             raise ValueError("'password' is required")
         if not self.driver_class_name:
             raise ValueError("'driver_class_name' is required")
+        if not self.host:
+            raise ValueError("'host' is required")
+        if not self.port:
+            raise ValueError("'port' is required")
+        p = int(self.port)
+        if not self.provider:
+            raise ValueError("'provider' is required")
 
 
 class ServiceConfig(JSonEnabled):
@@ -165,7 +187,7 @@ class DataflowConfig(JSonEnabled):
     prefix = 'SPRING_CLOUD_DATAFLOW_'
 
     @classmethod
-    def from_spring_env_vars(cls):
+    def from_env_vars(cls):
         env = env_vars(cls.prefix)
         streams_enabled = env.get(cls.prefix + "FEATURES_STREAMS_ENABLED") if env.get(
             cls.prefix + "FEATURES_STREAMS_ENABLED") else True
@@ -198,7 +220,7 @@ class SkipperConfig(JSonEnabled):
     prefix = 'SPRING_CLOUD_SKIPPER_'
 
     @classmethod
-    def from_spring_env_vars(cls):
+    def from_env_vars(cls):
         env = env_vars(cls.prefix)
         return SkipperConfig(env)
 
@@ -213,21 +235,28 @@ class SkipperConfig(JSonEnabled):
 
 
 class CloudFoundryConfig(JSonEnabled):
-    def __init__(self, deployer_config, datasource_config=None, dataflow_config=None, skipper_config=None,
+    @classmethod
+    def from_env_vars(cls):
+        deployer_config = CloudFoundryDeployerConfig.from_env_vars()
+        dataflow_config = DataflowConfig.from_env_vars()
+        db_config = DBConfig.from_env_vars()
+        return CloudFoundryConfig(deployer_config=deployer_config, dataflow_config=dataflow_config, db_config=db_config)
+
+    def __init__(self, deployer_config, dataflow_config=None, skipper_config=None, db_config=None,
                  services_config=[ServiceConfig.rabbit_default()], test_config=TestConfig()):
         self.deployer_config = deployer_config
-        self.datasource_config = datasource_config
         self.dataflow_config = dataflow_config
         self.skipper_config = skipper_config
         self.services_config = services_config
         self.test_config = test_config
+        self.db_config = db_config
+        # Set later. 1 for dataflow and one for skipper
+        self.datasources_config = {}
         self.validate()
 
     def validate(self):
         if not self.deployer_config:
             raise ValueError("'deployer_config' is required")
-        if not self.datasource_config and not len(self.services_config):
-            logger.error("Either external database or CF service must be configured")
         if not self.dataflow_config:
             logger.error("Really? No Dataflow config properties? What's the point")
         if not self.skipper_config and self.dataflow_config and not self.dataflow_config.streams_enabled:

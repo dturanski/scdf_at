@@ -1,11 +1,7 @@
 import unittest
 from cloudfoundry.cli import CloudFoundry
 from cloudfoundry.config import CloudFoundryDeployerConfig, ServiceConfig, CloudFoundryConfig
-import shell
-from shell import Shell
-import json_fix
-
-json_fix.patch()
+from scdf_at.shell import Shell
 
 
 class TestCommands(unittest.TestCase):
