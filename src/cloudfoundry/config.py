@@ -4,50 +4,70 @@ from cloudfoundry.domain import JSonEnabled
 logger = logging.getLogger(__name__)
 
 
+def env_vars(prefix):
+    if not prefix:
+        logger.warning("no environment variable prefix is set")
+    if not prefix:
+        return os.environ
+    env = {}
+    for (key, value) in os.environ.items():
+        if key.startswith(prefix):
+            env[key] = value
+    return env
+
+
+class TestConfig(JSonEnabled):
+    def __init__(self, env=None):
+        self.deploy_wait_sec = 20,
+        self.max_retries = 150
+        self.buildpacks = ['java_buildpack_offline']
+        self.maven_repos = ['https://repo.spring.io/libs-snapshot']
+        self.env = env
+
+
 class CloudFoundryDeployerConfig(JSonEnabled):
+    prefix = "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_"
+    url_key = prefix + "URL"
+    org_key = prefix + "ORG"
+    space_key = prefix + "SPACE"
+    app_domain_key = prefix + "DOMAIN"
+    username_key = prefix + "USERNAME"
+    password_key = prefix + "PASSWORD"
+    skip_ssl_validation_key = prefix + "SKIP_SSL_VALIDATION"
 
     @classmethod
-    def from_spring_env_vars(self):
-        url_key = "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_URL"
-        org_key = "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_ORG"
-        space_key = "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_SPACE"
-        domain_key = "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_DOMAIN"
-        username_key = "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_USERNAME"
-        password_key = "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD"
-        skip_ssl_validation_key = "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_SKIP_SSL_VALIDATION"
+    def from_spring_env_vars(cls):
+        env = env_vars(cls.prefix)
+        if not env.get(cls.url_key):
+            logger.error(cls.url_key + " is not configured in environment")
+            return None
 
+        return CloudFoundryDeployerConfig(api_endpoint=env.get(cls.url_key),
+                                          org=env.get(cls.org_key),
+                                          space=env.get(cls.space_key),
+                                          app_domain=env.get(cls.app_domain_key),
+                                          username=env.get(cls.username_key),
+                                          password=env.get(cls.password_key),
+                                          skip_ssl_validation=env.get(cls.skip_ssl_validation_key),
+                                          env=env)
+
+    def __init__(self, api_endpoint, org, space, app_domain, username, password, skip_ssl_validation=True,
+                 env=None):
         # Besides the required props,we will put these in the scdf_server manifest
-        deployer_props = {}
-        for (key, value) in os.environ.items():
-            if key.startswith("SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY") and key not in \
-                    [url_key, org_key, space_key, domain_key, username_key, password_key, skip_ssl_validation_key]:
-                deployer_props[key] = value
-
-        return CloudFoundryDeployerConfig(api_endpoint=os.getenv(url_key),
-                                          org=os.getenv(org_key),
-                                          space=os.getenv(space_key),
-                                          app_domain=os.getenv(domain_key),
-                                          username=os.getenv(username_key),
-                                          password=os.getenv(password_key),
-                                          skipSslValidation=os.getenv(skip_ssl_validation_key),
-                                          props=deployer_props)
-
-    def __init__(self, api_endpoint, org, space, app_domain, username, password,
-                 skipSslValidation=True, props={}, deploy_wait_sec=20, max_retries=150):
+        self.env = env
         self.api_endpoint = api_endpoint
         self.org = org
         self.space = space
-        self.skip_ssl_validation = skipSslValidation
         self.app_domain = app_domain
         self.username = username
         self.password = password
-        self.deploy_wait_sec = deploy_wait_sec
-        self.max_retries = max_retries
-        self.props = props
-        # Task services are optional if using an external DB.
-        task_services_key = "SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_TASK_SERVICES"
-        self.task_services = props[task_services_key].split(",") if props.get(task_services_key) else []
+        self.skip_ssl_validation = skip_ssl_validation
+        self.env = env
         self.validate()
+
+    def connection(self):
+        return {'url': self.api_endpoint, 'org': self.org, 'space': self.space, 'domain': self.app_domain,
+                'username': self.username, 'password': self.password}
 
     def validate(self):
         if not self.api_endpoint:
@@ -65,34 +85,30 @@ class CloudFoundryDeployerConfig(JSonEnabled):
 
 
 class DatasourceConfig(JSonEnabled):
+    prefix = "SPRING_DATA_SOURCE_"
+    url_key = prefix + "URL"
+    username_key = prefix + "USERNAME"
+    password_key = prefix + "PASSWORD"
+    driver_class_name_key = prefix + 'SPRING_DATASOURCE_DRIVER_CLASS_NAME'
+
     @classmethod
     def from_spring_env_vars(cls):
+        env = env_vars(cls.prefix)
 
-        url_key = 'SPRING_DATASOURCE_URL'
-        username_key = 'SPRING_DATASOURCE_USERNAME'
-        password_key = 'SPRING_DATASOURCE_PASSWORD'
-        driver_class_name_key = 'SPRING_DATASOURCE_DRIVER_CLASS_NAME'
-
-        if not os.getenv(url_key):
-            logger.warning(url_key + " is not set in the OS environment.")
+        if not env.get(cls.url_key):
+            logger.warning(cls.url_key + " is not set in the OS environment.")
             return None
-        return DatasourceConfig(os.getenv(url_key),
-                                os.getenv(username_key),
-                                os.getenv(password_key),
-                                os.getenv(driver_class_name_key))
+
+        return DatasourceConfig(url=env.get(cls.url_key),
+                                username=env.get(cls.username_key),
+                                password=env.get(cls.password_key),
+                                driver_class_name=env.get(cls.driver_class_name_key))
 
     def __init__(self, url, username, password, driver_class_name):
         self.url = url
         self.username = username
         self.password = password
         self.driver_class_name = driver_class_name
-
-    def as_env(self):
-        return {DatasourceConfig.URL_KEY: self.url,
-                DatasourceConfig.USERNAME_KEY: self.username,
-                DatasourceConfig.PASSWORD_KEY: self.password,
-                DatasourceConfig.DRIVER_CLASS_NAME_KEY: self.DRIVER_CLASS_NAME_KEY
-                }
 
     def validate(self):
         if not self.url:
@@ -146,50 +162,71 @@ class ServiceConfig(JSonEnabled):
 
 
 class DataflowConfig(JSonEnabled):
-    TASK_SERVICES_KEY = 'TASK_SERVICES'
-    APPLICATION_NAME_KEY = 'SPRING_APPLICATION_NAME'
-    PROFILES_ACTIVE_KEY = 'SPRING_PROFILES_ACTIVE'
-    SCHEDULER_URL_KEY = "scheduler-url"
-    STREAMS_ENABLED_KEY = "SPRING_CLOUD_DATAFLOW_FEATURES_STREAMS_ENABLED"
+    prefix = 'SPRING_CLOUD_DATAFLOW_'
 
-    def __init__(self, task_services=None, application_name="dataflow_server", profiles_active="cloud",
-                 scheduler_url=None,
-                 streams_enabled=True, schedules_enabled=False, spring_application_json=None):
-        self.task_services = task_services
-        self.application_name = application_name
-        self.profiles_active = profiles_active
-        self.scheduler_url = scheduler_url
+    @classmethod
+    def from_spring_env_vars(cls):
+        env = env_vars(cls.prefix)
+        streams_enabled = env.get(cls.prefix + "FEATURES_STREAMS_ENABLED") if env.get(
+            cls.prefix + "FEATURES_STREAMS_ENABLED") else True
+        tasks_enabled = env.get(cls.prefix + "FEATURES_TASKS_ENABLED") if env.get(
+            cls.prefix + "FEATURES_TASKS_ENABLED") else True
+        schedules_enabled = env.get(cls.prefix + "FEATURES_SCHEDULES_ENABLED") if env.get(
+            cls.prefix + "FEATURES_SCHEDULES_ENABLED") else False
+        return DataflowConfig(streams_enabled, tasks_enabled, schedules_enabled, env)
+
+    def __init__(self, streams_enabled=True, tasks_enabled=True, schedules_enabled=True, env={}):
         self.streams_enabled = streams_enabled
+        self.tasks_enabled = tasks_enabled
         self.schedules_enabled = schedules_enabled
-        self.spring_application_json = spring_application_json
+        self.env = env
+        if not env.get('SPRING_PROFILES_ACTIVE'):
+            env['SPRING_PROFILES_ACTIVE'] = 'cloud'
+        if not env.get('JBP_CONFIG_SPRING_AUTO_RECONFIGURATION'):
+            env['JBP_CONFIG_SPRING_AUTO_RECONFIGURATION'] = '{enabled: false}'
+        if not env.get('SPRING_APPLICATION_NAME'):
+            env['SPRING_APPLICATION_NAME'] = 'dataflow-server'
+
+    def validate(self):
+        if not self.streams_enabled and not self.tasks_enabled:
+            raise ValueError("One 'streams_enabled' or 'tasks_enabled' must be true")
+        if self.schedules_enabled and not self.tasks_enabled:
+            raise ValueError("'schedules_enabled' requires 'tasks_enabled' to be true")
 
 
 class SkipperConfig(JSonEnabled):
-    STREAM_SERVICES_KEY = 'STREAM_SERVICES'
-    PROFILES_ACTIVE_KEY = 'SPRING_PROFILES_ACTIVE'
+    prefix = 'SPRING_CLOUD_SKIPPER_'
+
+    @classmethod
+    def from_spring_env_vars(cls):
+        env = env_vars(cls.prefix)
+        return SkipperConfig(env)
+
+    def __init__(self, env={}):
+        self.env = env
+        if not env.get('SPRING_PROFILES_ACTIVE'):
+            env['SPRING_PROFILES_ACTIVE'] = 'cloud'
+        if not env.get('JBP_CONFIG_SPRING_AUTO_RECONFIGURATION'):
+            env['JBP_CONFIG_SPRING_AUTO_RECONFIGURATION'] = '{enabled: false}'
+        if not env.get('SPRING_APPLICATION_NAME'):
+            env['SPRING_APPLICATION_NAME'] = 'skipper-server'
 
 
 class CloudFoundryConfig(JSonEnabled):
-    def __init__(self, deployer_config, db_config=None, dataflow_config=None, skipper_config=None,
-                 services_config=[ServiceConfig.rabbit_default()], deploy_wait_sec=10, max_retries=150):
+    def __init__(self, deployer_config, datasource_config=None, dataflow_config=None, skipper_config=None,
+                 services_config=[ServiceConfig.rabbit_default()], test_config=TestConfig()):
         self.deployer_config = deployer_config
-        self.db_config = db_config
+        self.datasource_config = datasource_config
         self.dataflow_config = dataflow_config
         self.skipper_config = skipper_config
         self.services_config = services_config
+        self.test_config = test_config
         self.validate()
-        if self.dataflow_config and self.dataflow_config.schedules_enabled and self.services_config:
-            if not [service for service in self.services_config if service.plan == "scheduler-for-pcf"]:
-                scheduler_service = ServiceConfig.scheduler_default()
-                logger.info("Adding default scheduler service:" + json.dumps(scheduler_service))
-                self.services_config = services_config.append(scheduler_service)
-        if not len(self.deployer_config.task_services) and not self.db_config:
-            logger.error("We have a problem:Neither task Services nor an external DB are configured.")
 
     def validate(self):
         if not self.deployer_config:
             raise ValueError("'deployer_config' is required")
-        if not self.db_config and not len(self.services_config):
+        if not self.datasource_config and not len(self.services_config):
             logger.error("Either external database or CF service must be configured")
         if not self.dataflow_config:
             logger.error("Really? No Dataflow config properties? What's the point")

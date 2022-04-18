@@ -4,6 +4,7 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+
 class Shell:
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
@@ -15,9 +16,6 @@ class Shell:
             return proc
         else:
             return subprocess.run(args, capture_output=True)
-
-
-class Utils:
 
     @classmethod
     def log_stdout(cls, completed_proc):

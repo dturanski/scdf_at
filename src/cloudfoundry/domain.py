@@ -3,11 +3,20 @@ import json
 
 class JSonEnabled(json.JSONEncoder):
     def __json__(self):
-        dict = self.__dict__
-        for k,v in dict.items():
-            if 'password' in k or 'secret' in k:
-                dict[k] = "*************" if v else None
-        return dict
+        values = self.__dict__.copy()
+        for k, v in values.items():
+            if type(v) is dict:
+                for (_k_, _v_) in v.items():
+                    values[k][_k_] = self.mask(_k_, _v_)
+            else:
+                values[k] = self.mask(k, v)
+
+        return values
+
+    def mask(self, k, v):
+        if 'password' in k.lower() or 'secret' in k.lower():
+            return "********" if v else None
+        return v
 
     def __str__(self):
         return json.dumps(self)

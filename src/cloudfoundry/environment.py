@@ -31,15 +31,11 @@ class Standalone:
         if config.services_config:
             logger.info("Getting current services...")
             services = cf.services()
-            logger.info("verifying required services:" + str(config.services_config))
+            logger.info("verifying required services:" + str([str(s) for s in config.services_config]))
             required_services = {'create': [], 'wait': [], 'failed': [], 'deleting': [], 'unknown': []}
 
             for required_service in config.services_config:
-                print(json.dumps(required_service))
-                print(json.dumps([ServiceConfig.of_service(service) for service in services]))
-
-                if required_service not in [ServiceConfig.of_service(service)
-                                            for service in services]:
+                if required_service not in [ServiceConfig.of_service(service) for service in services]:
                     logger.debug("Adding %s to required services" % required_service)
                     required_services['create'].append(required_service)
                 else:
@@ -62,13 +58,13 @@ class Standalone:
 
                 for s in required_services['deleting']:
                     logger.info("waiting for required service %s to be deleted" % str(s))
-                    if not cf.wait_for(condition=lambda: cf.service(s.name) is None,
+                    if not cf.wait_for(success_condition=lambda: cf.service(s.name) is None,
                                        wait_message="waiting for %s to be deleted" % s.name):
                         raise SystemExit("FATAL: %s " % cf.service(s.name))
                     required_services['create'].append(ServiceConfig.of_service(s))
 
                 for s in required_services['wait']:
-                    if not cf.wait_for(condition=lambda: cf.service(s.name).status == 'create succeeded',
+                    if not cf.wait_for(success_condition=lambda: cf.service(s.name).status == 'create succeeded',
                                        wait_message="waiting for %s status 'create succeeded'" % s.name):
                         raise SystemExit("FATAL: %s " % cf.service(s.name))
 
@@ -85,3 +81,29 @@ class Standalone:
                 cf.delete_service(service.name)
         else:
             logger.info("using current services")
+
+
+def setup(cf, config, options):
+    config.dataflow_config.schedules_enabled = options.schedules_enabled
+    if config.dataflow_config.schedules_enabled and config.services_config:
+        if not [service for service in config.services_config if service.plan == "scheduler-for-pcf"]:
+            scheduler_service = ServiceConfig.scheduler_default()
+            logger.info("Adding default scheduler service: %s" % str(scheduler_service))
+            config.services_config.append(scheduler_service)
+    if options.platform == "tile":
+        return Tile.setup(cf, config, options)
+    elif options.platform == "cloudfoundry":
+        return Standalone.setup(cf, config, options)
+    else:
+        logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % options.platform)
+
+
+def clean(cf, config, options):
+    if options.platform == "tile":
+        return Tile.clean(cf, config, options)
+    elif options.platform == "cloudfoundry":
+        return Standalone.clean(cf, config, options)
+    else:
+        logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % options.platform)
+
+

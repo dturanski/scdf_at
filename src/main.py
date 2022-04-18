@@ -1,15 +1,20 @@
-import sys, os, logging
-
+import logging
+import os
+import sys
 sys.path.append(os.path.join(sys.path[0], ""))
+
 from cloudfoundry.cli import CloudFoundry
-from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryConfig, DataflowConfig, SkipperConfig, \
-    DatasourceConfig
+from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryConfig, DataflowConfig, DatasourceConfig
 from optparse import OptionParser
-from cloudfoundry import cf_setup,cf_clean
+import cloudfoundry.environment
 import json_fix
 
 json_fix.patch()
+
 logging.basicConfig(level=logging.INFO, format='%(name)s - %(asctime)s - %(levelname)s:  %(message)s')
+
+logger = logging.getLogger(__name__)
+
 
 def enable_debug_logging():
     level = logging.DEBUG
@@ -27,10 +32,19 @@ def parse_run_task(args):
         if not arg.startswith('-'):
             arguments.append(arg)
     if len(arguments) != 2:
-        print("usage: %s [clean,setup,..] --task options" % arguments[0])
+        logger.info("usage: %s [clean,setup,..] --task options" % arguments[0])
     else:
         run_task = arguments[1];
     return run_task;
+
+
+def cf_config_from_env():
+    deployer_config = CloudFoundryDeployerConfig.from_spring_env_vars()
+    db_config = DatasourceConfig.from_spring_env_vars()
+    dataflow_config = DataflowConfig.from_spring_env_vars()
+
+    return CloudFoundryConfig(deployer_config=deployer_config, db_config=db_config,
+                              dataflow_config=dataflow_config)
 
 
 def clean(args):
@@ -48,27 +62,16 @@ def clean(args):
                       dest='serverCleanup', action='store_true')
     try:
         options, arguments = parser.parse_args(args)
-        print(options)
-        print(arguments)
         cf = CloudFoundry.connect(cf_config_from_env().deployer_config)
-        print("cleaning up apps...")
+        logger.info("cleaning up apps...")
         if not options.serverCleanup:
-            print("cleaning services ...")
-            cf_clean.clean(cf, cf_config_from_env(), options)
+            logger.info("cleaning services ...")
 
+        cloudfoundry.environment.clean(cf, cf_config_from_env(), options)
 
     except SystemExit:
         parser.print_help()
-        sys.exit(1)
-
-
-def cf_config_from_env():
-
-    deployer_config = CloudFoundryDeployerConfig.from_spring_env_vars()
-    db_config = DatasourceConfig.from_spring_env_vars()
-
-    return CloudFoundryConfig(deployer_config=deployer_config, db_config=db_config,
-                              dataflow_config=DataflowConfig())
+        exit(1)
 
 
 def setup(args):
@@ -86,24 +89,36 @@ def setup(args):
                       dest='binder', default='rabbit')
     parser.add_option('--se', '--schedulesEnabled',
                       help='cleans the scheduling infrastructure',
-                      dest='schedulesEnabled', action='store_true')
+                      dest='schedules_enabled', action='store_true')
     parser.add_option('-d', '--doNotDownload',
                       help='skip the downloading of the SCDF/Skipper servers',
-                      dest='doNotDownload', action='store_true')
+                      dest='do_not_download', action='store_true')
     # TODO: This needs work, but here for legacy reasons
     parser.add_option('--cc', '--skipCloudConfig',
                       help='skip configuration of Cloud Config server',
-                      dest='cloudConfig', default=True, action='store_false')
+                      dest='cloud_config', default=True, action='store_false')
+    parser.add_option('--ts', '--taskServices',
+                      help='services to bind to tasks',
+                      dest='task_services')
+    parser.add_option('--ss', '--streamServices',
+                      help='services to bind to streams',
+                      dest='stream_services')
+    parser.add_option('--scdfServices',
+                      help='services to bind to the dataflow app',
+                      dest='scdf_services')
+    parser.add_option('--skipperServices',
+                      help='services to bind to the skipper app',
+                      dest='skipper_services')
     try:
         options, arguments = parser.parse_args(args)
         if options.debug:
             enable_debug_logging()
         cf = CloudFoundry.connect(cf_config_from_env().deployer_config)
-        cf_setup.setup(cf, cf_config_from_env(), options)
+        cloudfoundry.environment.setup(cf, cf_config_from_env(), options)
 
     except SystemExit:
         parser.print_help()
-        sys.exit(1)
+        exit(1)
 
 
 # Press the green button in the gutter to run the script.
@@ -116,5 +131,5 @@ if __name__ == '__main__':
     elif run_task == 'setup':
         setup(sys.argv)
     else:
-        print("Invalid task specified:" + str(run_task))
-        exit(1);
+        logger.info("Invalid task specified:" + str(run_task))
+        exit(1)
