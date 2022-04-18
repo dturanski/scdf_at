@@ -143,6 +143,35 @@ class DatasourceConfig(JSonEnabled):
             raise ValueError("'provider' is required")
 
 
+class KafkaConfig(JSonEnabled):
+    prefix = "KAFKA_"
+
+    @classmethod
+    def from_env_vars(cls):
+        env = env_vars(cls.prefix)
+        if not env.get(cls.prefix + 'BROKER_ADDRESS'):
+            logger.debug(
+                "%s is not defined in the OS environment. Skipping Kafka config" % (cls.prefix + 'BROKER_ADDRESS'))
+            return None
+
+        return KafkaConfig(broker_address=os.getenv(cls.prefix + 'BROKER_ADDRESS'),
+                           username=os.getenv(cls.prefix + 'USERNAME'),
+                           password=os.getenv(cls.prefix + 'PASSWORD'))
+
+    def __init__(self, broker_address, username, password):
+        self.broker_address = broker_address
+        self.username = username
+        self.password = password
+
+    def validate(self):
+        if not self.broker_address:
+            raise ValueError("'broker_address' is required")
+        if not self.username:
+            raise ValueError("'username' is required")
+        if not self.password:
+            raise ValueError("'password' is required")
+
+
 class ServiceConfig(JSonEnabled):
     def __init__(self, name, service, plan, config=None):
         self.name = name
@@ -240,16 +269,19 @@ class CloudFoundryConfig(JSonEnabled):
         deployer_config = CloudFoundryDeployerConfig.from_env_vars()
         dataflow_config = DataflowConfig.from_env_vars()
         db_config = DBConfig.from_env_vars()
-        return CloudFoundryConfig(deployer_config=deployer_config, dataflow_config=dataflow_config, db_config=db_config)
+        kafka_config = KafkaConfig.from_env_vars()
+        return CloudFoundryConfig(deployer_config=deployer_config, dataflow_config=dataflow_config,
+                                  db_config=db_config, kafka_config = kafka_config)
 
     def __init__(self, deployer_config, dataflow_config=None, skipper_config=None, db_config=None,
-                 services_config=[ServiceConfig.rabbit_default()], test_config=TestConfig()):
+                 services_config=[ServiceConfig.rabbit_default()], test_config=TestConfig(),kafka_config=None):
         self.deployer_config = deployer_config
         self.dataflow_config = dataflow_config
         self.skipper_config = skipper_config
         self.services_config = services_config
         self.test_config = test_config
         self.db_config = db_config
+        self.kafka_config = kafka_config
         # Set later. 1 for dataflow and one for skipper
         self.datasources_config = {}
         self.validate()

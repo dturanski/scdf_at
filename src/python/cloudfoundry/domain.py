@@ -14,8 +14,14 @@ class JSonEnabled(json.JSONEncoder):
         return values
 
     def mask(self, k, v):
-        if 'password' in k.lower() or 'secret' in k.lower():
-            return "********" if v else None
+        secret_words = ['password', 'secret','username', 'credentials']
+        for secret in secret_words:
+            if secret in k.lower():
+                return "********" if v else None
+
+        for secret in secret_words:
+            if type(v) is str and secret in v.lower():
+                return  "********"
         return v
 
     def __str__(self):

@@ -2,13 +2,13 @@ import logging
 import sys
 
 from cloudfoundry.cli import CloudFoundry
-from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryConfig, DataflowConfig, DatasourceConfig, \
-    DBConfig
+from cloudfoundry.config import CloudFoundryConfig
 from optparse import OptionParser
 import cloudfoundry.environment
 from scdf_at import enable_debug_logging
 
 logger = logging.getLogger(__name__)
+
 
 def setup(args):
     parser = OptionParser()
@@ -52,6 +52,8 @@ def setup(args):
             enable_debug_logging()
 
         cloudfoundry_config = CloudFoundryConfig.from_env_vars()
+        if not cloudfoundry_config.kafka_config and options.binder == 'kafka':
+            raise ValueError("Kafka environment is not configured for kafka binder")
         cf = CloudFoundry.connect(cloudfoundry_config.deployer_config)
         cloudfoundry.environment.setup(cf, cloudfoundry_config, options)
 
@@ -62,4 +64,6 @@ def setup(args):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    print(sys.argv)
+    # exit(1)
     setup(sys.argv)

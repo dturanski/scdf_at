@@ -5,14 +5,12 @@ python3 -m pip install --upgrade pip | grep -v 'Requirement already satisfied'
 pip3 install -r requirements.txt | grep -v 'Requirement already satisfied'
 
 ARGS=$@
-re='--sqlProvider=([[:alpha:]]+)[[:space:]]*'
+#This consumes $@ so save to ARGS first
 while [[ $# > 0 && -z $SQL_PROVIDER ]]
 do
   key="$1"
   if [[ $key = "--sqlProvider" ]]; then
     SQL_PROVIDER="$2"
-  elif [[ $key =~ $re ]]; then
-    SQL_PROVIDER="${BASH_REMATCH[0]}"
   fi
   shift
 done
