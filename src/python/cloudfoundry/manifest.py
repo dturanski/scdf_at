@@ -17,13 +17,13 @@ applications:
 
   env:
     SPRING_APPLICATION_NAME: data-flow-server
-    SPRING_CLOUD_DATAFLOW_SERVER_URI: https://dataflow-server.apps.alturas.cf-app.com
+    SPRING_CLOUD_DATAFLOW_SERVER_URI: https://blah
     SPRING_PROFILES_ACTIVE: cloud
     JBP_CONFIG_SPRING_AUTO_RECONFIGURATION: '{enabled: false}'    
-    SPRING_CLOUD_SKIPPER_CLIENT_SERVER_URI: https://skipper-server.apps.alturas.cf-app.com/api
-    SPRING_DATASOURCE_URL: 'jdbc:oracle:thin:@34.123.44.62:1521:xe'
-    SPRING_DATASOURCE_USERNAME: scdf
-    SPRING_DATASOURCE_PASSWORD: b1tnam1
+    SPRING_CLOUD_SKIPPER_CLIENT_SERVER_URI: https://skipper-server
+    SPRING_DATASOURCE_URL: 'jdbc:oracle:thin:@blah'
+    SPRING_DATASOURCE_USERNAME: user
+    SPRING_DATASOURCE_PASSWORD: pass
     SPRING_DATASOURCE_DRIVER_CLASS_NAME: oracle.jdbc.OracleDriver
     SPRING_APPLICATION_JSON: |-
 
@@ -40,12 +40,12 @@ applications:
           "spring.cloud.dataflow.task.platform.cloudfoundry.accounts" : {
              "default" : {
                 "connection": {
-                    "url": "https://api.sys.alturas.cf-app.com",
-                    "org": "p-dataflow",
-                    "space": "dturanski",
-                    "domain": "apps.alturas.cf-app.com",
-                    "username": "admin",
-                    "password": "Or1AbwZqANDQb_3NJfBLy1rol64uYI_m"
+                    "url": "https://api.blah.cf-app.com",
+                    "org": "org",
+                    "space": "space",
+                    "domain": "apps.blah.cf-app.com",
+                    "username": "user",
+                    "password": "pass"
                 },
                 "deployment": {
                    "services" : []
