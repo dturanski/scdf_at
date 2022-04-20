@@ -1,8 +1,23 @@
+__copyright__ = '''
+Copyright 2022 the original author or authors.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+'''
+
+__author__ = 'David Turanski'
+
 import logging
 import sys
 
 from cloudfoundry.cli import CloudFoundry
-from cloudfoundry.config import CloudFoundryConfig
+from cloudfoundry.config import CloudFoundryATConfig
 from optparse import OptionParser
 import cloudfoundry.environment
 from scdf_at import enable_debug_logging
@@ -19,7 +34,7 @@ def setup(args):
                       dest='platform', default='cloudfoundry')
     parser.add_option('-v', '--debug',
                       help='debug level logging',
-                      dest='debug', default=False, action='store_true')
+                      dest='debug', action='store_true')
     parser.add_option('-b', '--binder',
                       help='the broker type for stream apps(rabbit, kafka)',
                       dest='binder', default='rabbit')
@@ -32,8 +47,8 @@ def setup(args):
     # TODO: This needs work, but here for legacy reasons
     parser.add_option('--cc', '--skipCloudConfig',
                       help='skip configuration of Cloud Config server',
-                      dest='cloud_config', default=True, action='store_false')
-    parser.add_option('--ts', '--taskServices',
+                      dest='skip_cloud_config', default=True, action='store_false')
+    parser.add_option('--taskServices',
                       help='services to bind to tasks',
                       dest='task_services')
     parser.add_option('--ss', '--streamServices',
@@ -51,10 +66,11 @@ def setup(args):
         if options.debug:
             enable_debug_logging()
 
-        cloudfoundry_config = CloudFoundryConfig.from_env_vars()
+        cloudfoundry_config = CloudFoundryATConfig.from_env_vars()
         if not cloudfoundry_config.kafka_config and options.binder == 'kafka':
             raise ValueError("Kafka environment is not configured for kafka binder")
-        cf = CloudFoundry.connect(cloudfoundry_config.deployer_config)
+        cf = CloudFoundry.connect(deployer_config=cloudfoundry_config.deployer_config,
+                                  test_config=cloudfoundry_config.test_config)
         cloudfoundry.environment.setup(cf, cloudfoundry_config, options)
 
     except SystemExit:

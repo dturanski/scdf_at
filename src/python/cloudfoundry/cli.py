@@ -1,3 +1,20 @@
+__copyright__ = '''
+Copyright 2022 the original author or authors.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+'''
+
+__author__ = 'David Turanski'
+
+
+
 import json
 import logging
 import re
@@ -8,14 +25,18 @@ from cloudfoundry.config import TestConfig
 
 logger = logging.getLogger(__name__)
 
+'''
+Basically a cf cli screen scraper
+'''
+
 
 class CloudFoundry:
     initialized = False
 
     @classmethod
-    def connect(cls, deployer_config):
+    def connect(cls, deployer_config, test_config, shell=Shell()):
         logger.debug("ConnectionConfig:" + json.dumps(deployer_config))
-        cf = CloudFoundry(deployer_config)
+        cf = CloudFoundry(deployer_config,test_config, shell)
 
         if not CloudFoundry.initialized:
             logger.debug("logging in to CF - api: %s org: %s space: %s" % (
@@ -33,7 +54,7 @@ class CloudFoundry:
             logger.debug("Already logged in. Call 'cf logout'")
         return cf
 
-    def __init__(self, deployer_config, test_config=TestConfig(), shell=Shell()):
+    def __init__(self, deployer_config, test_config, shell):
         if not deployer_config:
             raise ValueError("'deployer_config' is required")
         if not test_config:
@@ -90,7 +111,11 @@ class CloudFoundry:
 
     def push(self, args):
         cmd = 'cf push ' + args
-        return self.shell.exec(cmd)
+        proc =  self.shell.exec(cmd)
+        if proc.returncode:
+            logger.error(self.shell.log_stdout(proc))
+            raise RuntimeError('cf push failed: %s' % str(proc.args))
+        return proc
 
     def is_logged_in(self):
         proc = self.shell.exec("cf target")

@@ -46,6 +46,6 @@ elif [[ "$os" == "Darwin" ]]; then
   fi
 
 fi
-
 export PYTHONPATH=./src/python:$PYTHONPATH
+python3 -m scdf_at.clean --serverCleanUp
 python3 -m scdf_at.setup $ARGS

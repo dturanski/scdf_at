@@ -1,28 +1,102 @@
-import os, json, logging
+__copyright__ = '''
+Copyright 2022 the original author or authors.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+'''
+
+__author__ = 'David Turanski'
+
+import json
+import logging
+import os
+
 from cloudfoundry.domain import JSonEnabled
 
 logger = logging.getLogger(__name__)
 
 
-def env_vars(prefix):
+def env_vars(env, prefix):
     if not prefix:
         logger.warning("no environment variable prefix is set")
     if not prefix:
-        return os.environ
-    env = {}
-    for (key, value) in os.environ.items():
+        return env
+    prefixed_env = {}
+    for (key, value) in env.items():
         if key.startswith(prefix):
-            env[key] = value
-    return env
+            prefixed_env[key] = value
+    return prefixed_env
 
 
 class TestConfig(JSonEnabled):
-    def __init__(self, env=None):
-        self.deploy_wait_sec = 20,
-        self.max_retries = 150
-        self.buildpacks = ['java_buildpack_offline']
-        self.maven_repos = ['https://repo.spring.io/libs-snapshot']
-        self.env = env
+    @classmethod
+    def from_env_vars(cls, env=os.environ):
+        dataflow_version =  env.get('DATAFLOW_VERSION')
+        skipper_version = env.get('SKIPPER_VERSION')
+        dataflow_jar_path = env.get('DATAFLOW_JAR_PATH')
+        skipper_jar_path = env.get('SKIPPER_JAR_PATH')
+        deploy_wait_sec = int(env.get('DEPLOY_WAIT_SEC')) if env.get('DEPLOY_WAIT_SEC') else None
+        max_retries = int(env.get('MAX_RETRIES')) if env.get('MAX_RETRIES') else None
+        buildpack = env.get('BUILDPACK') if env.get('BUILDPACK') else None
+        jbp_jre_version = env.get('JBP_JRE_VERSION')
+        maven_repos = json.loads(env.get('MAVEN_REPOS')) if env.get('MAVEN_REPOS') else None
+
+        return TestConfig(
+            dataflow_version=dataflow_version,
+            skipper_version=skipper_version,
+            dataflow_jar_path=dataflow_jar_path,
+            skipper_jar_path=skipper_jar_path,
+            deploy_wait_sec=deploy_wait_sec,
+            max_retries=max_retries,
+            buildpack=buildpack,
+            maven_repos=maven_repos,
+            jbp_jre_version=jbp_jre_version)
+
+    def __init__(self,
+                 dataflow_version=None,
+                 skipper_version=None,
+                 dataflow_jar_path=None,
+                 skipper_jar_path=None,
+                 deploy_wait_sec=None,
+                 max_retries=None,
+                 buildpack=None,
+                 maven_repos=None,
+                 jbp_jre_version=None):
+        # TODO: All the not used for tile is a code smell. Maybe refactor for different TestConfig and options
+        """
+        These all named for corresponding environment variables.
+        :param dataflow_version: Not used for Tile. the maven version for dataflow server
+        :param skipper_version: Not used for Tile. the maven version for skipper server
+        :param dataflow_jar_path: Not used for Tile. the dataflow jar path
+        :param skipper_jar_path: Not used for Tile. the skipper jar path
+        :param deploy_wait_sec: time to wait before polling the status of service and app create and delete operations
+        :param max_retries: maximum number of polls
+        :param buildpacks: Not used for Tile. Must be a java build pack for Spring Boot apps, typically no need to change this.
+        unless you want to try something java with a custom build pack, or override the default version to investigate JRE issues
+        :param maven_repos: Not used for Tile. Normally no need to change this.
+        :param jbp_jre_version: Not used for Tile. If you need to test a different runtime JRE version for the container
+        Note: Usedd conditional expressions instead of default arg values here b/c all are normally set even if None.
+        """
+        if not dataflow_version:
+            raise ValueError("'dataflow_version' is required")
+        if not skipper_version:
+            raise ValueError("'We could assume the skipper version is, and will always be, the same major version and minor version-1 relative to dataflow."
+                             "Would be a fun use of regex, but it's probably a bad idea. So you have to set it")
+        self.dataflow_version = dataflow_version
+        self.skipper_version = skipper_version
+        self.deploy_wait_sec = deploy_wait_sec if deploy_wait_sec else 20
+        self.max_retries = max_retries if max_retries else 30  # 10 min max wait time for a service or app to come up
+        self.buildpack = buildpack if buildpack else 'java_buildpack_offline'
+        self.maven_repos = maven_repos if maven_repos else {'repo1': 'https://repo.spring.io/libs-snapshot'}
+        self.jbp_jre_version = jbp_jre_version if jbp_jre_version else '1.8 +'
+        self.dataflow_jar_path = dataflow_jar_path
+        self.skipper_jar_path = skipper_jar_path
 
 
 class CloudFoundryDeployerConfig(JSonEnabled):
@@ -36,8 +110,8 @@ class CloudFoundryDeployerConfig(JSonEnabled):
     skip_ssl_validation_key = prefix + "SKIP_SSL_VALIDATION"
 
     @classmethod
-    def from_env_vars(cls):
-        env = env_vars(cls.prefix)
+    def from_env_vars(cls, env=os.environ):
+        env = env_vars(env, cls.prefix)
         if not env.get(cls.url_key):
             raise ValueError(cls.url_key + " is not configured in environment")
 
@@ -87,8 +161,8 @@ class DBConfig(JSonEnabled):
     prefix = "SQL_"
 
     @classmethod
-    def from_env_vars(cls):
-        env = env_vars(cls.prefix)
+    def from_env_vars(cls, env=os.environ):
+        env = env_vars(env, cls.prefix)
         if not env.get(cls.prefix + 'HOST'):
             logger.warning("%s is not defined in the OS environment" % (cls.prefix + 'HOST'))
             return None
@@ -116,14 +190,11 @@ class DatasourceConfig(JSonEnabled):
     password_key = prefix + "PASSWORD"
     driver_class_name_key = prefix + 'DRIVER_CLASS_NAME'
 
-    def __init__(self, url, username, password, driver_class_name, host, port, provider):
+    def __init__(self, url, username, password, driver_class_name):
         self.url = url
         self.username = username
         self.password = password
         self.driver_class_name = driver_class_name
-        self.host = host
-        self.port = port
-        self.provider = provider
 
     def validate(self):
         if not self.url:
@@ -134,24 +205,23 @@ class DatasourceConfig(JSonEnabled):
             raise ValueError("'password' is required")
         if not self.driver_class_name:
             raise ValueError("'driver_class_name' is required")
-        if not self.host:
-            raise ValueError("'host' is required")
-        if not self.port:
-            raise ValueError("'port' is required")
-        p = int(self.port)
-        if not self.provider:
-            raise ValueError("'provider' is required")
+
+    def as_env(self):
+        return {DatasourceConfig.url_key: '"%s"' % self.url,
+                DatasourceConfig.username_key: self.username,
+                DatasourceConfig.password_key: self.password,
+                DatasourceConfig.driver_class_name_key: self.driver_class_name}
 
 
 class KafkaConfig(JSonEnabled):
     prefix = "KAFKA_"
 
     @classmethod
-    def from_env_vars(cls):
-        env = env_vars(cls.prefix)
+    def from_env_vars(cls, env=os.environ):
+        env = env_vars(env, cls.prefix)
         if not env.get(cls.prefix + 'BROKER_ADDRESS'):
             logger.debug(
-                "%s is not defined in the OS environment. Skipping Kafka config" % (cls.prefix + 'BROKER_ADDRESS'))
+                "%s is not defined in the environment. Skipping Kafka config" % (cls.prefix + 'BROKER_ADDRESS'))
             return None
 
         return KafkaConfig(broker_address=os.getenv(cls.prefix + 'BROKER_ADDRESS'),
@@ -216,14 +286,12 @@ class DataflowConfig(JSonEnabled):
     prefix = 'SPRING_CLOUD_DATAFLOW_'
 
     @classmethod
-    def from_env_vars(cls):
-        env = env_vars(cls.prefix)
-        streams_enabled = env.get(cls.prefix + "FEATURES_STREAMS_ENABLED") if env.get(
-            cls.prefix + "FEATURES_STREAMS_ENABLED") else True
-        tasks_enabled = env.get(cls.prefix + "FEATURES_TASKS_ENABLED") if env.get(
-            cls.prefix + "FEATURES_TASKS_ENABLED") else True
-        schedules_enabled = env.get(cls.prefix + "FEATURES_SCHEDULES_ENABLED") if env.get(
-            cls.prefix + "FEATURES_SCHEDULES_ENABLED") else False
+    def from_env_vars(cls, env=os.environ):
+        env = env_vars(env, cls.prefix)
+        streams_enabled = env.get(cls.prefix + "FEATURES_STREAMS_ENABLED", True)
+        tasks_enabled = env.get(cls.prefix + "FEATURES_TASKS_ENABLED", True)
+        schedules_enabled = env.get(cls.prefix + "FEATURES_SCHEDULES_ENABLED", False)
+
         return DataflowConfig(streams_enabled, tasks_enabled, schedules_enabled, env)
 
     def __init__(self, streams_enabled=True, tasks_enabled=True, schedules_enabled=True, env={}):
@@ -231,12 +299,6 @@ class DataflowConfig(JSonEnabled):
         self.tasks_enabled = tasks_enabled
         self.schedules_enabled = schedules_enabled
         self.env = env
-        if not env.get('SPRING_PROFILES_ACTIVE'):
-            env['SPRING_PROFILES_ACTIVE'] = 'cloud'
-        if not env.get('JBP_CONFIG_SPRING_AUTO_RECONFIGURATION'):
-            env['JBP_CONFIG_SPRING_AUTO_RECONFIGURATION'] = '{enabled: false}'
-        if not env.get('SPRING_APPLICATION_NAME'):
-            env['SPRING_APPLICATION_NAME'] = 'dataflow-server'
 
     def validate(self):
         if not self.streams_enabled and not self.tasks_enabled:
@@ -249,8 +311,8 @@ class SkipperConfig(JSonEnabled):
     prefix = 'SPRING_CLOUD_SKIPPER_'
 
     @classmethod
-    def from_env_vars(cls):
-        env = env_vars(cls.prefix)
+    def from_env_vars(cls, env=os.environ):
+        env = env_vars(env, cls.prefix)
         return SkipperConfig(env)
 
     def __init__(self, env={}):
@@ -263,27 +325,30 @@ class SkipperConfig(JSonEnabled):
             env['SPRING_APPLICATION_NAME'] = 'skipper-server'
 
 
-class CloudFoundryConfig(JSonEnabled):
+class CloudFoundryATConfig(JSonEnabled):
     @classmethod
-    def from_env_vars(cls):
-        deployer_config = CloudFoundryDeployerConfig.from_env_vars()
-        dataflow_config = DataflowConfig.from_env_vars()
-        db_config = DBConfig.from_env_vars()
+    def from_env_vars(cls, env=os.environ):
+        deployer_config = CloudFoundryDeployerConfig.from_env_vars(env)
+        dataflow_config = DataflowConfig.from_env_vars(env)
+        db_config = DBConfig.from_env_vars(env)
+        test_config = TestConfig.from_env_vars(env)
         kafka_config = KafkaConfig.from_env_vars()
-        return CloudFoundryConfig(deployer_config=deployer_config, dataflow_config=dataflow_config,
-                                  db_config=db_config, kafka_config = kafka_config)
 
-    def __init__(self, deployer_config, dataflow_config=None, skipper_config=None, db_config=None,
-                 services_config=[ServiceConfig.rabbit_default()], test_config=TestConfig(),kafka_config=None):
+        return CloudFoundryATConfig(deployer_config=deployer_config, dataflow_config=dataflow_config,
+                                    db_config=db_config, kafka_config=kafka_config, test_config=test_config,
+                                    datasource_configs=None)
+
+    def __init__(self, deployer_config, test_config, dataflow_config=None, skipper_config=None, db_config=None,
+                 service_configs=[ServiceConfig.rabbit_default()], kafka_config=None, datasource_configs={}):
         self.deployer_config = deployer_config
         self.dataflow_config = dataflow_config
         self.skipper_config = skipper_config
-        self.services_config = services_config
+        self.service_configs = service_configs
         self.test_config = test_config
         self.db_config = db_config
         self.kafka_config = kafka_config
         # Set later. 1 for dataflow and one for skipper
-        self.datasources_config = {}
+        self.datasource_configs = datasource_configs
         self.validate()
 
     def validate(self):

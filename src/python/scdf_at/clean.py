@@ -1,8 +1,25 @@
+__copyright__ = '''
+Copyright 2022 the original author or authors.
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+      http://www.apache.org/licenses/LICENSE-2.0
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+'''
+
+__author__ = 'David Turanski'
+
+
+
 import logging
 import sys
 
 from cloudfoundry.cli import CloudFoundry
-from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryConfig, DataflowConfig, DatasourceConfig
+from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryATConfig, DataflowConfig, DatasourceConfig
 from optparse import OptionParser
 import cloudfoundry.environment
 from scdf_at import enable_debug_logging
@@ -15,8 +32,8 @@ def cf_config_from_env():
     db_config = DatasourceConfig.from_spring_env_vars()
     dataflow_config = DataflowConfig.from_env_vars()
 
-    return CloudFoundryConfig(deployer_config=deployer_config, db_config=db_config,
-                              dataflow_config=dataflow_config)
+    return CloudFoundryATConfig(deployer_config=deployer_config, db_config=db_config,
+                                dataflow_config=dataflow_config)
 
 
 def clean(args):
