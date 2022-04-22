@@ -13,15 +13,12 @@ Copyright 2022 the original author or authors.
 
 __author__ = 'David Turanski'
 
-
-
 import json
 import logging
 import re
-import time
 from scdf_at.shell import Shell
-from cloudfoundry.domain import Service
-from cloudfoundry.config import TestConfig
+from cloudfoundry.domain import Service, App
+from cloudfoundry.platform.util import Poller
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +33,7 @@ class CloudFoundry:
     @classmethod
     def connect(cls, deployer_config, test_config, shell=Shell()):
         logger.debug("ConnectionConfig:" + json.dumps(deployer_config))
-        cf = CloudFoundry(deployer_config,test_config, shell)
+        cf = CloudFoundry(deployer_config, test_config, shell)
 
         if not CloudFoundry.initialized:
             logger.debug("logging in to CF - api: %s org: %s space: %s" % (
@@ -61,7 +58,7 @@ class CloudFoundry:
             raise ValueError("'test_config' is required")
         if not shell:
             raise ValueError("'shell' is required")
-
+        self.poller = Poller(test_config.deploy_wait_sec, test_config.max_retries)
         self.test_config = test_config
         self.deployer_config = deployer_config
 
@@ -111,7 +108,7 @@ class CloudFoundry:
 
     def push(self, args):
         cmd = 'cf push ' + args
-        proc =  self.shell.exec(cmd)
+        proc = self.shell.exec(cmd)
         if proc.returncode:
             logger.error(self.shell.log_stdout(proc))
             raise RuntimeError('cf push failed: %s' % str(proc.args))
@@ -183,11 +180,39 @@ class CloudFoundry:
             logger.info("deleted service %s" % service_name)
         return proc
 
-    def create_service_key(self):
-        pass
+    def service_key(self, service_name, key_name='scdf-at'):
+        logger.info("getting service key % for service %s" % (key_name, service_name))
+        proc = self.shell("cf service-key %s %s" % (service_name, key_name))
+        msg = self.shell.stdout_to_s(proc)
+        if proc.returncode:
+            logger.info(msg)
+            return None
+        return json.loads(msg)
 
-    def delete_service_key(self):
-        pass
+    def create_service_key(self, service_name, key_name='scdf-at'):
+        if not self.service_key(service_name, key_name):
+            logger.info("creating service key % for service %s" % (key_name, service_name))
+            proc = self.shell("cf create-service-key %s %s" % (service_name, key_name))
+            if proc.returncode:
+                logger.error(self.shell.stdout_to_s(proc))
+                raise SystemExit("FATAL: Failed to create service key %s %s" % (service_name, key_name))
+            return proc
+        else:
+            logger.info("service key % %s already exists" % (service_name, key_name))
+            return None
+
+    def delete_service_key(self, service_name, key_name='scdf-at'):
+        if self.service_key(service_name, key_name):
+            logger.info("deleting service key % for service %s" % (key_name, service_name))
+            proc = self.shell("cf create-service-key %s %s" % (service_name, key_name))
+            if proc.returncode:
+                logger.error(self.shell.stdout_to_s(proc))
+            else:
+                proc = self.shell("service-key %s %s deleted" % (service_name, key_name))
+            return proc
+        else:
+            logger.info("service key % %s does not exist" % (service_name, key_name))
+            return None
 
     def apps(self):
         appnames = []
@@ -199,6 +224,14 @@ class CloudFoundry:
                 appnames.append(line.split(' ')[0])
             i = i + 1
         return appnames
+
+    def app(self, app_name):
+        proc = self.shell.exec("cf app %s" % app_name)
+        msg = self.shell.stdout_to_s(proc)
+        if proc.returncode:
+            logger.error(msg)
+            return None
+        return App.parse(msg)
 
     def delete_app(self, app_id):
         pass
@@ -214,20 +247,7 @@ class CloudFoundry:
             logger.debug("service %s does not exist, or there is some other issue." % service_name)
             return None
 
-        contents = self.shell.stdout_to_s(proc)
-        pattern = re.compile('(.+)\:\s+(.*)')
-        s = {}
-        for line in contents.split('\n'):
-            line = line.strip()
-            match = re.match(pattern, line)
-            if match:
-                s[match[1].strip()] = match[2].strip()
-
-        return Service(name=s.get('name'),
-                       service=s.get('service'),
-                       plan=s.get('plan'),
-                       status=s.get('status'),
-                       message=s.get('message'))
+        return Service.parse(self.shell.stdout_to_s(proc))
 
     def services(self):
         logger.debug("getting services")
@@ -248,30 +268,3 @@ class CloudFoundry:
 
         logger.debug("services:\n" + json.dumps(services, indent=4))
         return services
-
-    def wait_for(self, success_condition=True, args=[],
-                 failure_condition=False,
-                 wait_sec=None,
-                 max_retries=None,
-                 wait_message="waiting for condition to be satisfied",
-                 success_message="condition satisfied",
-                 fail_message="FAILED: condition not satisfied"):
-        tries = 0
-        if not wait_sec:
-            wait_sec = self.test_config.deploy_wait_sec
-        if not max_retries:
-            max_retries = self.test_config.max_retries
-
-        predicate = success_condition(*args)
-        while not predicate and tries < max_retries:
-            time.sleep(wait_sec)
-            tries = tries + 1
-            logger.info("%d/%d %s" % (tries, max_retries, wait_message))
-            predicate = success_condition(*args)
-            if failure_condition(*args):
-                break
-        if predicate:
-            logger.info(success_message)
-        else:
-            logger.error(fail_message)
-        return predicate

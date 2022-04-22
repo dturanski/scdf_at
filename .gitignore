@@ -3,3 +3,6 @@
 venv/
 instaclient_*/
 instantclient_*/
+build/
+test/scdf_manifest.yml
+**/skipper_manifest.yml

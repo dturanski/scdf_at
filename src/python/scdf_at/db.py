@@ -14,8 +14,6 @@ Copyright 2022 the original author or authors.
 __author__ = 'David Turanski'
 
 
-
-import sys
 import os
 import psycopg2
 import time
@@ -113,21 +111,22 @@ def init_oracle_db(db_config, dbname):
             conn.close()
 
 
-def init_db(config, options):
+def init_db(config):
     db = config.db_config
     if not (db and db.provider):
         logging.info("'database provider' is not defined. Skipping external DB initialization.")
         return
 
+    binder = config.test_config.binder
     if db.provider in ['postgresql', 'postgres']:
-        init_postgres_db(db, db_name('skipper', db, options.binder))
-        init_postgres_db(db, db_name('dataflow', db, options.binder))
-        skipper_url = "postgresql://%s:%d/%s?user=%s&password=%s" % (db.host, int(db.port),
-                                                                     db_name('skipper', db, options.binder),
+        init_postgres_db(db, db_name('skipper', db,binder))
+        init_postgres_db(db, db_name('dataflow', db, binder))
+        skipper_url = "jdbc:postgresql://%s:%d/%s?user=%s&password=%s" % (db.host, int(db.port),
+                                                                     db_name('skipper', db, binder),
                                                                      db.username,
                                                                      db.password)
-        dataflow_url = "postgresql://%s:%d/%s?user=%s&password=%s" % (db.host, int(db.port),
-                                                                      db_name('dataflow', db, options.binder),
+        dataflow_url = "jdbc:postgresql://%s:%d/%s?user=%s&password=%s" % (db.host, int(db.port),
+                                                                      db_name('dataflow', db, binder),
                                                                       db.username,
                                                                       db.password)
         driver_class_name = 'org.postgresql.Driver'

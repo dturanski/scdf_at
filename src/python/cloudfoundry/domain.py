@@ -13,9 +13,8 @@ Copyright 2022 the original author or authors.
 
 __author__ = 'David Turanski'
 
-
-
 import json
+import re
 
 
 class JSonEnabled(json.JSONEncoder):
@@ -31,14 +30,14 @@ class JSonEnabled(json.JSONEncoder):
         return values
 
     def mask(self, k, v):
-        secret_words = ['password', 'secret','username', 'credentials']
+        secret_words = ['password', 'secret', 'username', 'credentials']
         for secret in secret_words:
             if secret in k.lower():
                 return "********" if v else None
 
         for secret in secret_words:
             if type(v) is str and secret in v.lower():
-                return  "********"
+                return "********"
         return v
 
     def __str__(self):
@@ -46,16 +45,43 @@ class JSonEnabled(json.JSONEncoder):
 
 
 class App(JSonEnabled):
-    def __init__(self, name, requested_state, instances, memory, disk, urls):
+    pattern = re.compile('(.+)\:\s+(.*)')
+
+    @classmethod
+    def parse(cls, contents):
+
+        s = {}
+        for line in contents.split('\n'):
+            line = line.strip()
+            match = re.match(cls.pattern, line)
+            if match:
+                s[match[1].strip()] = match[2].strip()
+
+        return App(name=s.get('name'),
+                   route=s.get('routes'))
+
+    def __init__(self, name, route):
         self.name = name
-        self.requested_state = requested_state
-        self.instances = instances
-        self.memory = memory
-        self.disk = disk
-        self.urls = urls
+        self.route = route
 
 
 class Service(JSonEnabled):
+    pattern = re.compile('(.+)\:\s+(.*)')
+
+    @classmethod
+    def parse(cls, contents):
+        s = {}
+        for line in contents.split('\n'):
+            line = line.strip()
+            match = re.match(cls.pattern, line)
+            if match:
+                s[match[1].strip()] = match[2].strip()
+
+        return Service(name=s.get('name'),
+                       service=s.get('service'),
+                       plan=s.get('plan'),
+                       status=s.get('status'),
+                       message=s.get('message'))
 
     def __init__(self, name, service, plan, status, message):
         self.name = name

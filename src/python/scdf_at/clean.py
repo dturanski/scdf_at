@@ -14,14 +14,13 @@ Copyright 2022 the original author or authors.
 __author__ = 'David Turanski'
 
 
-
 import logging
 import sys
 
 from cloudfoundry.cli import CloudFoundry
 from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryATConfig, DataflowConfig, DatasourceConfig
 from optparse import OptionParser
-import cloudfoundry.environment
+from cloudfoundry.platform import standalone, tile
 from scdf_at import enable_debug_logging
 
 logger = logging.getLogger(__name__)
@@ -43,22 +42,21 @@ def clean(args):
     parser.add_option('-v', '--debug',
                       help='debug level logging',
                       dest='debug', default=False, action='store_true')
-    parser.add_option('-p', '--platform',
-                      help='the platform type (cloudfoundry, tile)',
-                      dest='platform', default='cloudfoundry')
-    parser.add_option('--serverCleanup',
+    parser.add_option('--appsOnly',
                       help='run the cleanup for the apps, but excluding services',
-                      dest='serverCleanup', action='store_true')
+                      dest='apps-only', action='store_true')
     try:
         options, arguments = parser.parse_args(args)
         if options.debug:
             enable_debug_logging()
-        cf = CloudFoundry.connect(cf_config_from_env().deployer_config)
-        logger.info("cleaning up apps...")
-        if not options.serverCleanup:
-            logger.info("cleaning services ...")
-
-        cloudfoundry.environment.clean(cf, cf_config_from_env(), options)
+        config = CloudFoundryATConfig.from_env_vars()
+        cf = CloudFoundry.connect(config.deployer_config)
+        if config.test_config.platform == "tile":
+            return tile.clean(cf, config)
+        elif config.test_config.platform == "cloudfoundry":
+            return standalone.clean(cf, options.do_not_download)
+        else:
+            logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % config.test_config.platform)
 
     except SystemExit:
         parser.print_help()

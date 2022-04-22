@@ -15,7 +15,7 @@ __author__ = 'David Turanski'
 
 import unittest
 from cloudfoundry.cli import CloudFoundry
-from cloudfoundry.config import CloudFoundryDeployerConfig, ServiceConfig, CloudFoundryATConfig, TestConfig
+from cloudfoundry.config import CloudFoundryDeployerConfig, ServiceConfig, CloudFoundryATConfig, AcceptanceTestsConfig
 from scdf_at.shell import Shell
 
 
@@ -72,5 +72,5 @@ class TestCommands(unittest.TestCase):
                                                      username="user",
                                                      password="password")
         return CloudFoundryATConfig(deployer_config=deployer_config,
-                                    test_config=TestConfig(dataflow_version='2.1.0-SNAPSHOT',
-                                                           skipper_version='2.9.0-SNAPSHOT'))
+                                    test_config=AcceptanceTestsConfig(dataflow_version='2.1.0-SNAPSHOT',
+                                                                      skipper_version='2.9.0-SNAPSHOT'))

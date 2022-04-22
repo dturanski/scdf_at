@@ -14,30 +14,79 @@ Copyright 2022 the original author or authors.
 __author__ = 'David Turanski'
 
 import unittest
+import scdf_at
+scdf_at.enable_debug_logging()
 
-from cloudfoundry.config import TestConfig
+from cloudfoundry.config import AcceptanceTestsConfig, CloudFoundryServicesConfig, CloudFoundryATConfig, \
+    CloudFoundryDeployerConfig, ServiceConfig, SkipperConfig, DatasourceConfig, DBConfig, KafkaConfig
 
 
-class TestConfigObjects(unittest.TestCase):
-    def test_datasource_config(self):
-        pass
+class TestConfigProperties(unittest.TestCase):
+    def test_services_config_default(self):
+        env = {}
+        cf_services_config = CloudFoundryServicesConfig.from_env_vars(env)
+        self.assertEqual(ServiceConfig.rabbit_default(), cf_services_config['rabbit'])
+        self.assertEqual(ServiceConfig.scheduler_default(), cf_services_config['scheduler'])
+        self.assertEqual(ServiceConfig.sql_default(), cf_services_config['sql'])
+        self.assertEqual(ServiceConfig.dataflow_default(), cf_services_config['dataflow'])
+        self.assertEqual(ServiceConfig.config_default(), cf_services_config['config'])
 
-    def test_dataflow_and_skipper_versions_required(self):
+    def test_cf_at_config_standalone(self):
         with self.assertRaises(ValueError):
-            TestConfig.from_env_vars(env={})
+            CloudFoundryATConfig.from_env_vars({'PLATFORM':'cloudfoundry'})
         with self.assertRaises(ValueError):
-            TestConfig.from_env_vars(env={'DATAFLOW_VERSION': '2.10.0-SNAPSHOT'})
+            CloudFoundryATConfig.from_env_vars(merged_env([deployer_env(), {'PLATFORM' : 'cloudfoundry'}]))
         with self.assertRaises(ValueError):
-            TestConfig.from_env_vars(env={'SKIPPER_VERSION': '2.9.0-SNAPSHOT'})
-        test_config = TestConfig.from_env_vars(env={'SKIPPER_VERSION': '2.9.0-SNAPSHOT', 'DATAFLOW_VERSION': '2.10.0-SNAPSHOT'})
-        self.assertEqual('2.9.0-SNAPSHOT',test_config.skipper_version)
-        self.assertEqual('2.10.0-SNAPSHOT', test_config.dataflow_version)
+            CloudFoundryATConfig.from_env_vars(standalone_test_env())
+
+        CloudFoundryATConfig.from_env_vars(merged_env([deployer_env(), standalone_test_env()]))
 
     def test_env_present_test_config(self):
-        test_config = TestConfig.from_env_vars(env={'DATAFLOW_VERSION': '2.10.0-SNAPSHOT',
-                                                    'SKIPPER_VERSION': '2.9.0-SNAPSHOT',
-                                                    'DEPLOY_WAIT_SEC': '60',
-                                                    'MAX_RETRIES': '10'})
+        test_config = AcceptanceTestsConfig.from_env_vars(env={'DATAFLOW_VERSION': '2.10.0-SNAPSHOT',
+                                                               'SKIPPER_VERSION': '2.9.0-SNAPSHOT',
+                                                               'DEPLOY_WAIT_SEC': '60',
+                                                               'MAX_RETRIES': '10'})
         self.assertEqual(60, test_config.deploy_wait_sec)
         self.assertEqual(10, test_config.max_retries)
         self.assertEqual(test_config.maven_repos['repo1'], 'https://repo.spring.io/libs-snapshot')
+
+    def test_assert_required_keys(self):
+        with self.assertRaises(ValueError):
+            DBConfig.assert_required_keys({})
+        with self.assertRaises(ValueError):
+            CloudFoundryDeployerConfig.assert_required_keys({})
+        with self.assertRaises(ValueError):
+            KafkaConfig.assert_required_keys({})
+
+def deployer_env():
+    return {'SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_URL': 'https://api.sys.some-host.cf.app.com',
+            'SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_ORG': 'org',
+            'SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_SPACE': 'space',
+            'SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_DOMAIN': 'apps.some-host.cf.app.com',
+            'SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_USERNAME': 'user',
+            'SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD': 'password',
+            'SPRING_CLOUD_DEPLOYER_SKIP_SSL_VALIDATION': 'false',
+            'SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_SCHEDULER_URL': 'scheduler.sys.some-host.cf.app.com'
+            }
+
+
+def deployer_config():
+    return CloudFoundryDeployerConfig.from_env_vars(deployer_env())
+
+
+def standalone_test_env():
+    return {'DATAFLOW_VERSION': '2.10.0-SNAPSHOT',
+     'SKIPPER_VERSION': '2.9.0-SNAPSHOT',
+     'PLATFORM': 'cloudfoundry'}
+
+
+def standdalone_test_config():
+    return AcceptanceTestsConfig.from_env_vars(standalone_test_env())
+
+
+def merged_env(envs):
+    merged = {}
+    for env in envs:
+        merged |= env
+    return merged
+
