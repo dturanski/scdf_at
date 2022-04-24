@@ -18,9 +18,12 @@ import logging
 import sys
 
 from cloudfoundry.cli import CloudFoundry
-from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryATConfig, DataflowConfig, DatasourceConfig
 from optparse import OptionParser
 from cloudfoundry.platform import standalone, tile
+from cloudfoundry.platform.config.at import CloudFoundryATConfig
+from cloudfoundry.platform.config.dataflow import DataflowConfig
+from cloudfoundry.platform.config.db import DatasourceConfig
+from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
 from scdf_at import enable_debug_logging
 
 logger = logging.getLogger(__name__)
@@ -44,17 +47,17 @@ def clean(args):
                       dest='debug', default=False, action='store_true')
     parser.add_option('--appsOnly',
                       help='run the cleanup for the apps, but excluding services',
-                      dest='apps-only', action='store_true')
+                      dest='apps_only', action='store_true')
     try:
         options, arguments = parser.parse_args(args)
         if options.debug:
             enable_debug_logging()
         config = CloudFoundryATConfig.from_env_vars()
-        cf = CloudFoundry.connect(config.deployer_config)
+        cf = CloudFoundry.connect(deployer_config=config.deployer_config, test_config=config.test_config)
         if config.test_config.platform == "tile":
             return tile.clean(cf, config)
         elif config.test_config.platform == "cloudfoundry":
-            return standalone.clean(cf, options.do_not_download)
+            return standalone.clean(cf, config, options.apps_only)
         else:
             logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % config.test_config.platform)
 

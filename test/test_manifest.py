@@ -16,14 +16,27 @@ __author__ = 'David Turanski'
 import json
 import logging
 import unittest
-import scdf_at
+
 import yaml
 
-scdf_at.enable_debug_logging()
+import scdf_at
+from cloudfoundry.cli import CloudFoundry
+from cloudfoundry.platform.config.db import DatasourceConfig
+from cloudfoundry.platform.config.kafka import KafkaConfig
+from cloudfoundry.platform.config.skipper import SkipperConfig
+from cloudfoundry.platform.config.dataflow import DataflowConfig
+from cloudfoundry.platform.config.at_config import AcceptanceTestsConfig
+from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
+from cloudfoundry.platform.config.service import CloudFoundryServicesConfig
+from cloudfoundry.platform.config.at import CloudFoundryATConfig
 
-from cloudfoundry.config import CloudFoundryDeployerConfig, CloudFoundryATConfig, DataflowConfig, AcceptanceTestsConfig, \
-    DatasourceConfig, SkipperConfig, CloudFoundryServicesConfig
-from cloudfoundry.manifest import create_for_scdf, create_for_skipper, spring_application_json
+import cloudfoundry.platform.manifest.skipper as skipper_manifest
+import cloudfoundry.platform.manifest.dataflow as dataflow_manifest
+from cloudfoundry.platform.manifest.util import spring_application_json
+from cloudfoundry.platform.standalone import deploy
+from scdf_at.shell import Shell
+
+scdf_at.enable_debug_logging()
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +63,7 @@ class TestManifest(unittest.TestCase):
 
     def test_basic_dataflow_manifest(self):
         params = {'skipper_uri': 'https://skipper-server.somehost.cf-app.com/api'}
-        manifest = create_for_scdf(cf_at_config=self.config(),params=params)
+        manifest = dataflow_manifest.create_manifest(cf_at_config=self.config(), params=params)
         print(manifest)
         doc = yaml.safe_load(manifest)
         app = doc['applications'][0]
@@ -65,8 +78,32 @@ class TestManifest(unittest.TestCase):
             saj['spring.cloud.dataflow.task.platform.cloudfoundry.accounts']['default']['deployment']['services'],
             ['mysql'])
 
+    def test_dataflow_manifest_with_kafka(self):
+        params = {'skipper_uri': 'https://skipper-server.somehost.cf-app.com/api'}
+        config = self.config()
+        config.test_config.platform = 'kafka'
+        cf_at_config = cf_at_config = CloudFoundryATConfig(deployer_config=config.deployer_config,
+                                                           dataflow_config=config.dataflow_config,
+                                                           skipper_config=config.skipper_config,
+                                                           services_config=config.services_config,
+                                                           kafka_config=KafkaConfig(broker_address="12.345.678.89:9092",
+                                                                                    username='user',
+                                                                                    password='password'),
+                                                           test_config=config.test_config)
+
+
+        manifest = dataflow_manifest.create_manifest(cf_at_config=config, params=params)
+        print(manifest)
+        cf = CloudFoundry(test_config=config.test_config, deployer_config=config.deployer_config, shell=Shell(dry_run=True))
+        deploy(cf=cf, cf_config=config, create_manifest=dataflow_manifest.create_manifest, application_name='dataflow-server',
+               manifest_path='test.yml')
+
+        doc = yaml.safe_load(manifest)
+        app = doc['applications'][0]
+
+
     def test_basic_skipper_manifest(self):
-        manifest = create_for_skipper(cf_at_config=self.config())
+        manifest = skipper_manifest.create_manifest(cf_at_config=self.config())
         doc = yaml.safe_load(manifest)
         app = doc['applications'][0]
         self.assertEqual(app['name'], 'skipper-server')
@@ -80,13 +117,19 @@ class TestManifest(unittest.TestCase):
             ['rabbit'])
 
     def config(self):
+        deployer_env = {
+            CloudFoundryDeployerConfig.scheduler_url_key:
+                "'https://scheduler.sys.somehost.cf-app.com'",
+            'SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_AUTO_DELETE_MAVEN_ARTIFACTS': 'false'
+        }
         deployer_config = CloudFoundryDeployerConfig(api_endpoint="https://api.mycf.org",
                                                      org="org",
                                                      space="space",
                                                      app_domain="apps.mycf.org",
                                                      username="user",
-                                                     password="password")
-
+                                                     password="password",
+                                                     env=deployer_env
+                                                     )
         test_config = AcceptanceTestsConfig()
         test_config.dataflow_version = '2.10.0-SNAPSHOT'
         test_config.skipper_version = '2.9.0-SNAPSHOT'
@@ -96,6 +139,7 @@ class TestManifest(unittest.TestCase):
         test_config.platform = 'cloudfoundry'
         test_config.task_services = ['mysql']
         test_config.stream_services = ['rabbit']
+        test_config.scheduler_enabled = True
         dataflow_config = DataflowConfig()
         datasources_config = {
             'dataflow': DatasourceConfig(url="jdbc://oracle:thin:123.456.78:1234/xe/dataflow",

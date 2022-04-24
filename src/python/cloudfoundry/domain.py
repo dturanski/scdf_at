@@ -19,6 +19,9 @@ import re
 
 class JSonEnabled(json.JSONEncoder):
     def __json__(self):
+        return self.__dict__.copy()
+
+    def masked(self):
         values = self.__dict__.copy()
         for k, v in values.items():
             if type(v) is dict:
@@ -27,7 +30,7 @@ class JSonEnabled(json.JSONEncoder):
             else:
                 values[k] = self.mask(k, v)
 
-        return values
+        return json.dumps(values)
 
     def mask(self, k, v):
         secret_words = ['password', 'secret', 'username', 'credentials']
@@ -42,6 +45,7 @@ class JSonEnabled(json.JSONEncoder):
 
     def __str__(self):
         return json.dumps(self)
+
 
 
 class App(JSonEnabled):

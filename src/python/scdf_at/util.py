@@ -16,6 +16,7 @@ __author__ = 'David Turanski'
 import logging
 import time
 import requests
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -52,3 +53,6 @@ def wait_for_200(poller, url):
                            args=[url],
                            success_message=url + " is up!",
                            fail_message=url + " is down")
+
+def server_uri():
+    return os.getenv('SERVER_URI')

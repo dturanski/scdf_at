@@ -15,13 +15,18 @@ __author__ = 'David Turanski'
 
 import unittest
 import scdf_at
-scdf_at.enable_debug_logging()
+from cloudfoundry.platform.config.db import DBConfig
+from cloudfoundry.platform.config.at_config import AcceptanceTestsConfig
+from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
+from cloudfoundry.platform.config.service import CloudFoundryServicesConfig, ServiceConfig
+from cloudfoundry.platform.config.kafka import KafkaConfig
+from cloudfoundry.platform.config.at import CloudFoundryATConfig
 
-from cloudfoundry.config import AcceptanceTestsConfig, CloudFoundryServicesConfig, CloudFoundryATConfig, \
-    CloudFoundryDeployerConfig, ServiceConfig, SkipperConfig, DatasourceConfig, DBConfig, KafkaConfig
+scdf_at.enable_debug_logging()
 
 
 class TestConfigProperties(unittest.TestCase):
+
     def test_services_config_default(self):
         env = {}
         cf_services_config = CloudFoundryServicesConfig.from_env_vars(env)
@@ -33,9 +38,9 @@ class TestConfigProperties(unittest.TestCase):
 
     def test_cf_at_config_standalone(self):
         with self.assertRaises(ValueError):
-            CloudFoundryATConfig.from_env_vars({'PLATFORM':'cloudfoundry'})
+            CloudFoundryATConfig.from_env_vars({'PLATFORM': 'cloudfoundry'})
         with self.assertRaises(ValueError):
-            CloudFoundryATConfig.from_env_vars(merged_env([deployer_env(), {'PLATFORM' : 'cloudfoundry'}]))
+            CloudFoundryATConfig.from_env_vars(merged_env([deployer_env(), {'PLATFORM': 'cloudfoundry'}]))
         with self.assertRaises(ValueError):
             CloudFoundryATConfig.from_env_vars(standalone_test_env())
 
@@ -58,6 +63,13 @@ class TestConfigProperties(unittest.TestCase):
         with self.assertRaises(ValueError):
             KafkaConfig.assert_required_keys({})
 
+    def test_kafka_settings(self):
+        env = standalone_test_env().copy()
+        env.update({'BINDER': 'kafka'})
+        test_config = AcceptanceTestsConfig.from_env_vars(env)
+        self.assertEqual("https://dataflow.spring.io/kafka-maven-latest", test_config.stream_apps_uri)
+
+
 def deployer_env():
     return {'SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_URL': 'https://api.sys.some-host.cf.app.com',
             'SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_ORG': 'org',
@@ -76,8 +88,8 @@ def deployer_config():
 
 def standalone_test_env():
     return {'DATAFLOW_VERSION': '2.10.0-SNAPSHOT',
-     'SKIPPER_VERSION': '2.9.0-SNAPSHOT',
-     'PLATFORM': 'cloudfoundry'}
+            'SKIPPER_VERSION': '2.9.0-SNAPSHOT',
+            'PLATFORM': 'cloudfoundry'}
 
 
 def standdalone_test_config():
@@ -89,4 +101,3 @@ def merged_env(envs):
     for env in envs:
         merged |= env
     return merged
-

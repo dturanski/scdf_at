@@ -13,13 +13,41 @@ Copyright 2022 the original author or authors.
 
 __author__ = 'David Turanski'
 
+import subprocess
 import unittest
+
 from cloudfoundry.cli import CloudFoundry
-from cloudfoundry.config import CloudFoundryDeployerConfig, ServiceConfig, CloudFoundryATConfig, AcceptanceTestsConfig
+from cloudfoundry.platform.config.dataflow import DataflowConfig
+from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
+from cloudfoundry.platform.config.at_config import AcceptanceTestsConfig
+from cloudfoundry.platform.config.service import ServiceConfig
+from cloudfoundry.platform.config.at import CloudFoundryATConfig
+
 from scdf_at.shell import Shell
 
 
+class MockShell:
+    def __init__(self):
+        self.dry_run = True
+
+    def stdout_to_s(self, proc):
+        return """
+Getting key %s for service instance %s as admin...
+
+{
+     "api_endpoint": "https://scheduler.sys.avenal.cf-app.com"
+}
+            """ % ('ci-scheduler', 'scdf-at')
+
+    def exec(self, cmd):
+        return subprocess.CompletedProcess([], 0)
+
+
 class TestCommands(unittest.TestCase):
+    def test_service_key(self):
+        cf = CloudFoundry(self.config().deployer_config, self.config().test_config, MockShell())
+        service_key = cf.service_key('ci-scheduler', 'scdf-at')
+        self.assertEqual('https://scheduler.sys.avenal.cf-app.com', service_key.get( 'api_endpoint'))
 
     def test_basic_shell(self):
         shell = Shell()
@@ -51,7 +79,7 @@ class TestCommands(unittest.TestCase):
 
         apps.remove('scdf-app-repo')
 
-        cf.delete_all(apps)
+        cf.delete_apps(apps)
 
     def test_create_service(self):
         cf = self.cloudfoundry()
@@ -61,8 +89,7 @@ class TestCommands(unittest.TestCase):
     def cloudfoundry(self):
         config = self.config()
         return CloudFoundry(deployer_config=config.deployer_config, test_config=config.test_config,
-                          shell=Shell(dry_run=True))
-
+                            shell=Shell(dry_run=True))
 
     def config(self):
         deployer_config = CloudFoundryDeployerConfig(api_endpoint="https://api.mycf.org",
@@ -71,6 +98,11 @@ class TestCommands(unittest.TestCase):
                                                      app_domain="apps.mycf.org",
                                                      username="user",
                                                      password="password")
+        test_config = AcceptanceTestsConfig()
+        test_config.dataflow_version = '2.1.0-SNAPSHOT'
+        test_config.skipper_version = '2.9.0-SNAPSHOT'
+        test_config.platform = 'cloudfoundry'
         return CloudFoundryATConfig(deployer_config=deployer_config,
-                                    test_config=AcceptanceTestsConfig(dataflow_version='2.1.0-SNAPSHOT',
-                                                                      skipper_version='2.9.0-SNAPSHOT'))
+                                    test_config=test_config,
+                                    services_config={'sql': ServiceConfig(name='foo', plan='bar', service='service')},
+                                    dataflow_config=DataflowConfig())

@@ -13,8 +13,6 @@ Copyright 2022 the original author or authors.
 
 __author__ = 'David Turanski'
 
-
-
 import subprocess
 import shlex
 import logging
@@ -33,16 +31,11 @@ class Shell:
             proc = subprocess.CompletedProcess(args, 0)
             return proc
         else:
-            stdout = subprocess.PIPE
-            stderr = subprocess.STDOUT
-            if not capture_output:
-                stdout = None
-                stderr = None
             return subprocess.run(args, capture_output=capture_output)
 
     @classmethod
     def log_stdout(cls, completed_proc):
-        print(cls.stdout_to_s(completed_proc))
+        logger.info(cls.stdout_to_s(completed_proc))
 
     @classmethod
     def stdout_to_s(cls, completed_proc):

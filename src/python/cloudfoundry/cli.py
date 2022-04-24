@@ -18,7 +18,7 @@ import logging
 import re
 from scdf_at.shell import Shell
 from cloudfoundry.domain import Service, App
-from cloudfoundry.platform.util import Poller
+from scdf_at.util import Poller
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +68,14 @@ class CloudFoundry:
         except Exception:
             raise RuntimeError('cf cli is not installed')
 
+        if shell.dry_run:
+            CloudFoundry.initialized = True
+            return
+
         target = self.current_target()
 
         if target and not target.get('api endpoint') == deployer_config.api_endpoint:
-            raise RuntimeError("Already logged in to " + target.get('api endpoint'))
+            raise RuntimeError("Already logged in to %s" % str(target.get('api endpoint')))
         # Might be logged in with no space and org
         if target and target.get('api endpoint') == deployer_config.api_endpoint and not (
                 target.get('org') == deployer_config.org and target.get('space') == deployer_config.space):
@@ -88,7 +92,7 @@ class CloudFoundry:
     def current_target(self):
         proc = self.shell.exec("cf target")
         contents = self.shell.stdout_to_s(proc)
-        print(contents)
+        logger.debug(contents)
         target = {}
         for line in contents.split('\n'):
             if line and ':' in line:
@@ -107,8 +111,8 @@ class CloudFoundry:
         return self.shell.exec(cmd)
 
     def push(self, args):
-        cmd = 'cf push ' + args
-        proc = self.shell.exec(cmd)
+        cmd = 'cf push %s' % args
+        proc = self.shell.exec(cmd, capture_output=False)
         if proc.returncode:
             logger.error(self.shell.log_stdout(proc))
             raise RuntimeError('cf push failed: %s' % str(proc.args))
@@ -136,7 +140,6 @@ class CloudFoundry:
                self.deployer_config.username,
                self.deployer_config.password,
                skip_ssl)
-        print(cmd)
         return self.shell.exec(cmd)
 
     def create_service(self, service_config):
@@ -153,10 +156,11 @@ class CloudFoundry:
             logger.error(self.shell.stdout_to_s(proc))
             return proc
 
-        if not self.wait_for(success_condition=lambda: self.service(service_config.name).status == 'create succeeded',
-                             failure_condition=lambda: self.service(service_config.name).status == 'create failed',
-                             wait_message="waiting for service status 'create succeeded'"):
-            raise SystemExit("FATAL: unable to create service %s" % service_config)
+        if not self.poller.wait_for(
+                success_condition=lambda: self.service(service_config.name).status == 'create succeeded',
+                failure_condition=lambda: self.service(service_config.name).status == 'create failed',
+                wait_message="waiting for service %s status 'create succeeded'" % service_config.name):
+            raise RuntimeError("FATAL: unable to create service %s" % service_config)
         else:
             logger.info("created service %s" % service_config.name)
         return proc
@@ -172,22 +176,27 @@ class CloudFoundry:
             logger.error(self.shell.stdout_to_s(proc))
             return proc
 
-        if not self.wait_for(success_condition=lambda: self.service(service_name) is None,
-                             failure_condition=lambda: self.service(service_name).status == 'delete failed',
-                             wait_message="waiting for %s to be deleted" % service_name):
-            raise SystemExit("FATAL: %s " % str(self.service(service_name)))
+        def fail():
+            service = self.service(service_name)
+            return service and service.status == 'delete failed'
+
+        if not self.poller.wait_for(success_condition=lambda: self.service(service_name) is None,
+                                    failure_condition=fail,
+                                    wait_message="waiting for %s to be deleted" % service_name):
+            raise RuntimeError("FATAL: %s " % str(self.service(service_name)))
         else:
             logger.info("deleted service %s" % service_name)
         return proc
 
     def service_key(self, service_name, key_name='scdf-at'):
-        logger.info("getting service key % for service %s" % (key_name, service_name))
-        proc = self.shell("cf service-key %s %s" % (service_name, key_name))
+        logger.info("getting service key %s for service %s" % (key_name, service_name))
+        proc = self.shell.exec("cf service-key %s %s" % (service_name, key_name))
         msg = self.shell.stdout_to_s(proc)
         if proc.returncode:
-            logger.info(msg)
+            logger.error(msg)
             return None
-        return json.loads(msg)
+        service_key_json = re.sub("Getting key.+\n", "", msg)
+        return json.loads(service_key_json)
 
     def create_service_key(self, service_name, key_name='scdf-at'):
         if not self.service_key(service_name, key_name):
@@ -195,7 +204,7 @@ class CloudFoundry:
             proc = self.shell("cf create-service-key %s %s" % (service_name, key_name))
             if proc.returncode:
                 logger.error(self.shell.stdout_to_s(proc))
-                raise SystemExit("FATAL: Failed to create service key %s %s" % (service_name, key_name))
+                raise RuntimeError("FATAL: Failed to create service key %s %s" % (service_name, key_name))
             return proc
         else:
             logger.info("service key % %s already exists" % (service_name, key_name))
@@ -233,13 +242,23 @@ class CloudFoundry:
             return None
         return App.parse(msg)
 
-    def delete_app(self, app_id):
-        pass
+    def delete_app(self, app_name):
+        proc = self.shell.exec("cf delete -f %s" % app_name)
+        msg = self.shell.stdout_to_s(proc)
+        if proc.returncode:
+            logger.error("Failed to delete app %s [%s]" % (app_name, msg))
 
-    def delete_all(self, apps):
+    def delete_orphaned_routes(self):
+        proc = self.shell.exec("cf delete-orphaned-routes -f")
+        msg = self.shell.stdout_to_s(proc)
+        if proc.returncode:
+            logger.error("Failed to delete orphaned routes %s" % msg)
+
+    def delete_apps(self, apps=None):
+        apps = apps if apps else self.apps()
         for app in apps:
-            proc = self.shell.exec("cf delete -f %s" % app)
-            self.shell.log_command(proc, "executed");
+            self.delete_app(app)
+        self.delete_orphaned_routes()
 
     def service(self, service_name):
         proc = self.shell.exec("cf service " + service_name)
@@ -266,5 +285,14 @@ class CloudFoundry:
                     row = line.split(' ')
                     services.append(self.service(row[0]))
 
-        logger.debug("services:\n" + json.dumps(services, indent=4))
+        logger.debug("existing services:\n" + json.dumps(services, indent=4))
         return services
+
+    def oauth_token(self):
+        logger.debug("getting oauth-token")
+        proc = self.shell.exec("cf oauth-token")
+        contents = self.shell.stdout_to_s(proc)
+        if proc.returncode != 0:
+            logger.error("failed to get oauth-token: %s" % contents)
+            return None
+        return contents.rstrip('\n')

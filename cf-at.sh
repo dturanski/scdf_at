@@ -4,6 +4,20 @@ PATH=$PATH:~/.local/bin
 python3 -m pip install --upgrade pip | grep -v 'Requirement already satisfied'
 pip3 install -r requirements.txt | grep -v 'Requirement already satisfied'
 
+load_file() {
+  filename=$1
+  echo "exporting required env variables from $filename :"
+  while IFS='=' read -r var value; do
+  if ! [[ $var == \#* ]]; then
+    # only the un-set variables are exported
+    if [ -z ${!var} ]; then
+      export $var="$(eval echo $value)"
+    fi
+  fi
+  done < "$filename"
+}
+
+
 ARGS=$@
 #This consumes $@ so save to ARGS first
 while [[ $# > 0 && -z $SQL_PROVIDER ]]
@@ -49,4 +63,10 @@ fi
 export PYTHONPATH=./src/python:$PYTHONPATH
 python3 -m scdf_at.clean --appsOnly
 # TODO: Get the return value for skipper and dataflow url
-echo `python3 -m scdf_at.setup $ARGS`
+
+python3 -m scdf_at.setup $ARGS
+if [[ $? > 0 ]]; then
+  exit 1
+fi
+load_file "cf_at.properties"
+echo "SERVER_URI=$SERVER_URI"

@@ -29,14 +29,14 @@ Copyright 2022 the original author or authors.
 __author__ = 'David Turanski'
 
 import logging
-import json
 import os
 
-import cloudfoundry.manifest
+import cloudfoundry.platform.manifest.skipper as skipper_manifest
+import cloudfoundry.platform.manifest.dataflow as dataflow_manifest
 
-from cloudfoundry.config import ServiceConfig
 from scdf_at.shell import Shell
-from cloudfoundry.platform.util import Poller, wait_for_200
+from scdf_at.util import Poller, wait_for_200
+from cloudfoundry.platform.registration import register_apps
 
 logger = logging.getLogger(__name__)
 
@@ -57,87 +57,55 @@ def setup(cf, config, do_not_download, shell=Shell()):
         logger.info("downloading jars")
         download_server_jars(config.test_config, shell)
 
-    logger.debug("Setup using config:\n" + json.dumps(config, indent=4))
-    if config.service_configs:
-        logger.info("Getting current services...")
-        services = cf.services()
-        logger.info("verifying availability of required services:" + str([str(s) for s in config.service_configs]))
-        required_services = {'create': [], 'wait': [], 'failed': [], 'deleting': [], 'unknown': []}
-
-    for required_service in config.service_configs:
-        if required_service not in [ServiceConfig.of_service(service) for service in services]:
-            logger.debug("Adding %s to required services" % required_service)
-            required_services['create'].append(required_service)
-        else:
-            logger.debug("Checking health of required service %s" % str(required_service))
-            for service in services:
-                if ServiceConfig.of_service(service) == required_service:
-                    if service.status not in ['create succeeded', 'update succeeded']:
-                        logger.warning(
-                            "status of required service %s is %s" % (service.name, service.status))
-                        if service.status == 'create in progress':
-                            required_services['wait'].append(service)
-                        elif service.status == 'delete in progress':
-                            required_services['deleting'].append(service)
-                        elif service.status == 'create failed':
-                            required_services['failed'].append(service)
-                        else:
-                            required_services['unknown'].append(service)
-                else:
-                    logger.debug("required service is healthy %s" % str(required_service))
-
-        for s in required_services['deleting']:
-            logger.info("waiting for required service %s to be deleted" % str(s))
-            if not cf.wait_for(success_condition=lambda: cf.service(s.name) is None,
-                               wait_message="waiting for %s to be deleted" % s.name):
-                raise RuntimeError("FATAL: %s " % cf.service(s.name))
-            required_services['create'].append(ServiceConfig.of_service(s))
-
-        for s in required_services['wait']:
-            if not cf.wait_for(success_condition=lambda: cf.service(s.name).status == 'create succeeded',
-                               wait_message="waiting for %s status 'create succeeded'" % s.name):
-                raise RuntimeError("FATAL: %s " % cf.service(s.name))
-
-        for s in required_services['create']:
-            logger.info("creating service:" + str(s))
-            cf.create_service(s)
-
-    skipper_uri=None
+    skipper_uri = None
     if config.dataflow_config.streams_enabled:
         logger.debug("deploying skipper server")
-        deploy(cf, 'skipper_manifest.yml', cloudfoundry.manifest.create_for_skipper, config)
+        deploy(cf=cf, manifest_path='skipper_manifest.yml',
+               create_manifest=skipper_manifest.create_manifest, application_name='skipper-server',
+               cf_config=config, params={})
         skipper_app = cf.app('skipper-server')
-        skipper_uri = 'https://%s/api' % skipper_app.route
-        logger.debug("waiting for skipper api live")
-        if not wait_for_200(skipper_uri):
+        # TODO: Try https
+        skipper_uri = 'http://%s/api' % skipper_app.route
+        logger.debug("waiting for skipper api %s to be live" % skipper_uri)
+        if not wait_for_200(poller, skipper_uri):
             raise RuntimeError("skipper server deployment failed")
 
     logger.debug("getting dataflow server url")
     logger.debug("waiting for dataflow server to start")
-    deploy(cf, 'dataflow_manifest.yml', cloudfoundry.manifest.create_for_scdf, config, {'skipper_uri': skipper_uri})
-    dataflow_app = cf.app('dataflow_uri')
-    dataflow_uri = dataflow_app.route
-    if not wait_for_200(dataflow_uri):
+    deploy(cf=cf, manifest_path='dataflow_manifest.yml', application_name='dataflow-server',
+           create_manifest=dataflow_manifest.create_manifest, cf_config=config,
+           params={'skipper_uri': skipper_uri})
+
+    dataflow_app = cf.app('dataflow-server')
+    dataflow_uri = "https://" + dataflow_app.route
+    if not wait_for_200(poller, dataflow_uri):
         raise RuntimeError("dataflow server deployment failed")
+
+    register_apps(cf, config, dataflow_uri)
     return dataflow_uri
 
 
-
 def clean(cf, config, apps_only):
-    if config.service_configs:
+    if config.services_config and not apps_only:
         logger.info("deleting current services...")
         services = cf.services()
         for service in services:
             cf.delete_service(service.name)
     else:
-        logger.info("using current services")
+        logger.info("'apps-only' option is set, keeping existing current services")
+    logger.info("cleaning apps")
+    cf.delete_apps()
 
 
-def deploy(cf, manifest_path, create_manifest, cf_config, params={}):
+def deploy(cf, application_name, manifest_path, create_manifest, cf_config, params={}):
     manifest = open(manifest_path, 'w')
-    manifest.write(create_manifest(cf_config, params))
-    manifest.close()
-    cf.push('-f ' + manifest_path)
+    try:
+        mf = create_manifest(cf_config, application_name=application_name, params=params)
+        manifest.write(mf)
+        manifest.close()
+        cf.push('-f ' + manifest_path)
+    finally:
+        manifest.close()
 
 
 def download_server_jars(test_config, shell):
@@ -164,7 +132,7 @@ def download_maven_jar(url, destination, shell):
         logger.debug("deleting existing file %s" % destination)
         os.remove(destination)
 
-    cmd = 'wget %s -v -o %s' % (url, destination)
+    cmd = 'wget %s -q -O %s' % (url, destination)
     try:
         proc = shell.exec(cmd, capture_output=False)
         if proc.returncode:

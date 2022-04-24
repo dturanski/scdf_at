@@ -21,7 +21,7 @@ import cx_Oracle
 import traceback
 import logging
 
-from cloudfoundry.config import DatasourceConfig
+from cloudfoundry.platform.config.db import DatasourceConfig
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +145,7 @@ def init_db(config):
     else:
         raise ValueError("Sorry, SQL provider %s is invalid or unsupported." % db.provider)
 
-    config.datasource_configs = {
+    datasource_configs = {
         "dataflow": DatasourceConfig(url=dataflow_url,
                                      username=db.username,
                                      password=db.password,
@@ -155,3 +155,4 @@ def init_db(config):
                                     password=db.password,
                                     driver_class_name=driver_class_name),
     }
+    return datasource_configs
