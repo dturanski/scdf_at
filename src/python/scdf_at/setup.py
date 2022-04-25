@@ -20,7 +20,7 @@ import json
 from cloudfoundry.cli import CloudFoundry
 from optparse import OptionParser
 from cloudfoundry.platform import standalone, tile
-from cloudfoundry.platform.config.at import CloudFoundryATConfig
+from cloudfoundry.platform.config.at import CloudFoundryPlatformConfig
 from cloudfoundry.platform.config.service import ServiceConfig
 from scdf_at import enable_debug_logging
 from scdf_at.db import init_db
@@ -44,7 +44,7 @@ def setup(args):
     parser.usage = "%prog setup options"
 
     try:
-        config = CloudFoundryATConfig.from_env_vars()
+        config = CloudFoundryPlatformConfig.from_env_vars()
         logger.debug("Setup using config:\n" + json.dumps(config, indent=4))
         add_options_for_platform(parser, config.test_config.platform)
         options, arguments = parser.parse_args(args)

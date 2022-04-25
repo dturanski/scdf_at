@@ -28,7 +28,7 @@ from cloudfoundry.platform.config.kafka import KafkaConfig
 logger = logging.getLogger(__name__)
 
 
-class CloudFoundryATConfig(EnvironmentAware):
+class CloudFoundryPlatformConfig(EnvironmentAware):
     @classmethod
     def from_env_vars(cls, env=os.environ):
         deployer_config = CloudFoundryDeployerConfig.from_env_vars(env)
@@ -39,15 +39,15 @@ class CloudFoundryATConfig(EnvironmentAware):
         services_config = CloudFoundryServicesConfig.from_env_vars(env)
         skipper_config = SkipperConfig.from_env_vars(env)
 
-        return CloudFoundryATConfig(deployer_config=deployer_config,
-                                    dataflow_config=dataflow_config,
-                                    skipper_config=skipper_config,
-                                    db_config=db_config,
-                                    kafka_config=kafka_config,
-                                    test_config=test_config,
-                                    services_config=services_config,
-                                    env=env
-                                    )
+        return CloudFoundryPlatformConfig(deployer_config=deployer_config,
+                                          dataflow_config=dataflow_config,
+                                          skipper_config=skipper_config,
+                                          db_config=db_config,
+                                          kafka_config=kafka_config,
+                                          test_config=test_config,
+                                          services_config=services_config,
+                                          env=env
+                                          )
 
     def __init__(self, deployer_config, test_config, dataflow_config=None, skipper_config=None, db_config=None,
                  services_config=None, kafka_config=None, env={}):

@@ -21,7 +21,7 @@ from cloudfoundry.platform.config.dataflow import DataflowConfig
 from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
 from cloudfoundry.platform.config.at_config import AcceptanceTestsConfig
 from cloudfoundry.platform.config.service import ServiceConfig
-from cloudfoundry.platform.config.at import CloudFoundryATConfig
+from cloudfoundry.platform.config.at import CloudFoundryPlatformConfig
 
 from scdf_at.shell import Shell
 
@@ -102,7 +102,7 @@ class TestCommands(unittest.TestCase):
         test_config.dataflow_version = '2.1.0-SNAPSHOT'
         test_config.skipper_version = '2.9.0-SNAPSHOT'
         test_config.platform = 'cloudfoundry'
-        return CloudFoundryATConfig(deployer_config=deployer_config,
-                                    test_config=test_config,
-                                    services_config={'sql': ServiceConfig(name='foo', plan='bar', service='service')},
-                                    dataflow_config=DataflowConfig())
+        return CloudFoundryPlatformConfig(deployer_config=deployer_config,
+                                          test_config=test_config,
+                                          services_config={'sql': ServiceConfig(name='foo', plan='bar', service='service')},
+                                          dataflow_config=DataflowConfig())

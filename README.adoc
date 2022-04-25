@@ -1,1 +1,193 @@
-Hi
+= Spring Cloud Data Flow Acceptance Tests For Cloud Foundry
+
+[NOTE]
+This is a Python 3 port of the SCDF AT bash scripts.
+
+== About
+This project supports Spring Cloud Data Flow acceptence testing on Cloud Foundry environments.
+This may be used to test dataflow as standalone app instances, or as a Dataflow Cloud Foundry service instance (the *tile*)
+This is intended to work with Cloud Foundry SQL and Message Broker services (e.g., mysql, rabbit) or
+connecting to an external Database, Currently Oracle or Postgresql, and an external Kafka message broker.
+
+Learning from previous iterations, this simplifies configuration by requiring everything to be configured with environment variables.
+The framework binds configuration objects to environment variables, grouped by prefix, binding to Spring properties directly where possible.
+The exception to this are the core AT configuration properties which do not use a prefix.
+Examples are `BINDER`, `PLATFORM`, `MAVEN_REPOS` (more details to follow).
+
+== Cloud Foundry Platform Configuration
+
+These configuration properties apply to each platform
+
+[source, bash]
+#
+# CloudFoundry connect properties.
+# For the tile, these are only required to connecte. They do not apply to the Cloud Foundry deployer.
+# For standalone, you can add to these as needed to configure the deployer.
+#
+export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_URL=https://api.sys.somehost.cf-app.com
+export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_ORG=my-org
+export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_SPACE=my-space
+export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_DOMAIN=apps.somehost.cf-app.com
+export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_USERNAME=user
+export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD=password
+#export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_SKIP_SSL_VALIDATION=true
+#
+# AT Test properies with opinionated defaults
+#
+#export PLATFORM=tile
+#export SCHEDULER_ENABLED=false
+#export CONFIG_SERVER_ENABLED=false
+#export BINDER=rabbit
+#export DEPLOY_WAIT_SEC=20
+#export MAX_RETRIES=30
+#export MAVEN_REPOS='{"repo1":"https://repo.spring.io/libs-snapshot"}'
+#
+# External DB configuration (
+#
+export SQL_PROVIDER="oracle"
+export SQL_HOST=postgres_host
+export SQL_PORT=5432
+export SQL_PASSWORD=postgres_password
+export SQL_USERNAME=postgres_username
+export SQL_INDEX=0
+#
+# External Kafka Configuration
+#
+export KAFKA_BROKER_ADDRESS=35.227.103.143:9092
+export KAFKA_USERNAME=admin
+export KAFKA_PASSWORD=bitnami
+#
+# Dataflow server configuration defaults
+#
+#export SPRING_CLOUD_DATAFLOW_FEATURES_STREAMS_ENABLED=true
+#export SPRING_CLOUD_DATAFLOW_FEATURES_TASKS_ENABLED=true
+#export SPRING_CLOUD_DATAFLOW_FEATURES_SCHEDULER_ENABLED=false
+#
+# Default CF Service definitions. These configurations are all available if the service is needed.
+# Which services are actually required is determined by the platform configuration.
+# The tile requires dataflow, and works with the scheduler, and config server, but provides its own proxy ralational and broker services
+# in place of rabbit and SQL. Services are automatically removed when analyzing the aggregate environment.
+#
+### SQL Service to bind to skipper and dataflow if no external datasource configured
+#export CF_SERVICE_SQL_SERVICE='{"sql":{"name":"mysql", "service":"p.mysql","plan":"db-small"}'
+#export CF_SERVICE_RABBIT='{"rabbit":{"name":"rabbit","service":"p.rabbitmq","plan":"single-node"}'
+#export CF_SERVICE_SCHEDULER='{"scheduler":{name":"ci-scheduler", "service":"scheduler-for-pcf","plan":"standard"}'
+#export CF_SERVICE_CONFIG='{"config":{"name""config-server":"p.config-server","plan":"standard"}'
+#export CF_SERVICE_DATAFLOW='{"dataflow":{"name":"dataflow","service":"p.dataflow","plan":"standard"}'
+#
+# App Registrion
+#
+#export TASK_APPS_URI=https://dataflow.spring.io/task-maven-latest
+#export STREAM_APPS_URI=https://dataflow.spring.io/rabbitmq-maven-latest"
+
+== The Standalone Platform
+
+This installs dataflow-server and skipper-server apps for given versions, and installs any configured services.
+By default, the servers will create and use `rabbit` and `mysql` platform service. Optionally, it will use `config-server` and
+`cf-scheduler`. The configuration derives some properties,such as `stream_apps_uri`, which is dependent on the `binder`.
+
+The `standalone` platform is generally easier for testing and troubleshooting OSS and PRO dataflow editions deployed to Cloud Foundry.
+The CF manifest generation is designed to by as flexible as possible so you can directly set virtually any native Deployer, Dataflow, or Skipper property,
+which is not true of the tile, which uses its own configuration mapping.
+
+=== Standalone Configuration
+
+The standalone platform uses the following additional configuration properties:
+
+[source, bash]
+#export TRUST_CERTS=api.sys.somehost.cf-app.com
+#export JBP_JRE_VERSION="1.8. +"
+#export BUILDPACK=java_buildpack_offline
+#
+#  Download server jars (Maven by default)
+#
+#export DATAFLOW_JAR_PATH=./build/dataflow-server.jar
+#export SKIPPER_JAR_PATH=./build/skipper-server.jar
+#
+# required server versions
+#
+export DATAFLOW_VERSION=2.10.0-SNAPSHOT
+export SKIPPER_VERSION=2.9.0-SNAPSHOT
+## Set if using the CF rabbit service for message broker or add services, separated by ','
+#export STREAM_SERVICES=rabbit
+# Set if using a CF SQL service or add services, separated by ','
+#export TASK_SERVICES=mysql
+
+== The Tile Platform
+
+The tile platform configuration creates a Cloud Foundry Dataflow service instance.
+The configuration is less flexible, but it's easier to set up than standalone.
+No jars or manifests are needed. The configuration properties map to tile configuration, provided as
+json. By default, no additional services are needed, since it creates what it needs behind the scene.
+The tile works with external DB, and an external Kafka broker if configured for it. Optionally, it can
+work with the Scheduler service and/or the Config Server. This is useful for verifying tile releases.
+
+=== Tile Configuration
+No additional configuration properties are required for the tile.
+
+== App Registration
+When the dataflow server is up and running, pre-packaged stream and task apps are automatically registered from a configurable location.
+
+[source, bash]
+#
+# App Registrion
+#
+#export TASK_APPS_URI=https://dataflow.spring.io/task-maven-latest
+#export STREAM_APPS_URI=https://dataflow.spring.io/rabbitmq-maven-latest"
+
+Additional acceptance test apps are registered from link:app-imports.properties[app-imports.properties]
+This file is the normal app import format, but processed using a template processor that attempts to resolve `$BINDER` and `$DATAFLOW_VERSION`.
+
+== Running ATs
+
+The normal steps are:
+
+=== Clean up the environment
+Typically we run tests repeatedly in the same Cloud Foundry target environment, so we delete all the apps and services,
+and related resources (service-keys, as needed) and initialize the external DB configured.
+This basically blows away the schema so dataflow can recreate it with flyway. Use the `--appsOnly` command line option
+to leave the services in place, since this takes time. Not recommended for CI testing, but useful if running locally.
+
+The basic command is
+
+[source, bash]
+python3 -m scdf_at.clean -v #--appsOnly
+
+use --help to list the available command line options
+
+=== Setup the platform
+This creates all the required services, or verifies they are available, if `--appsOnly`.
+Currently, if `clean` was not run first, and the server apps are deployed, setup will create new instances
+which map to a different route. That's a nice CF feature, but will cause the setup to break currently.
+So please run clean first, or delete the apps using the cloudfoundry cli.
+Setup writes the values `SERVER_URI` and any other required values, e.g. `SPRING_CLOUD_DATAFLOW_SCHEDULER_URL` that
+the tests need to `cf_at.properties`, which is loaded by the test process.
+Files are used for inter-process communication, since any OS environment variable set in a called process does not apply to the calling process.
+
+[source, bash]
+python3 -m scdf_at.setup
+
+use `--help` to list the available command line options
+
+link:cf-at.sh[cf-at.sh] is the common script that all SCDF Acceptance tests running in CI will run.
+It sets up the local environment to run the above commands:
+
+* installs any dependent Python libs
+* configures the Python environment (`export PYTHONPATH=./src/python:$PYTHONPATH`)
+* configures the Oracle client for Python
+* installs the cloudfoundry CLI, if necessary
+
+=== Run the tests,
+
+[source, bash]
+
+Load `cf_at.properties`, perform any additional setup, and run a maven command.
+
+
+
+
+
+
+
+
+

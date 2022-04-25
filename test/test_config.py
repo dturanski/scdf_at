@@ -20,7 +20,7 @@ from cloudfoundry.platform.config.at_config import AcceptanceTestsConfig
 from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
 from cloudfoundry.platform.config.service import CloudFoundryServicesConfig, ServiceConfig
 from cloudfoundry.platform.config.kafka import KafkaConfig
-from cloudfoundry.platform.config.at import CloudFoundryATConfig
+from cloudfoundry.platform.config.at import CloudFoundryPlatformConfig
 
 scdf_at.enable_debug_logging()
 
@@ -38,13 +38,13 @@ class TestConfigProperties(unittest.TestCase):
 
     def test_cf_at_config_standalone(self):
         with self.assertRaises(ValueError):
-            CloudFoundryATConfig.from_env_vars({'PLATFORM': 'cloudfoundry'})
+            CloudFoundryPlatformConfig.from_env_vars({'PLATFORM': 'cloudfoundry'})
         with self.assertRaises(ValueError):
-            CloudFoundryATConfig.from_env_vars(merged_env([deployer_env(), {'PLATFORM': 'cloudfoundry'}]))
+            CloudFoundryPlatformConfig.from_env_vars(merged_env([deployer_env(), {'PLATFORM': 'cloudfoundry'}]))
         with self.assertRaises(ValueError):
-            CloudFoundryATConfig.from_env_vars(standalone_test_env())
+            CloudFoundryPlatformConfig.from_env_vars(standalone_test_env())
 
-        CloudFoundryATConfig.from_env_vars(merged_env([deployer_env(), standalone_test_env()]))
+        CloudFoundryPlatformConfig.from_env_vars(merged_env([deployer_env(), standalone_test_env()]))
 
     def test_env_present_test_config(self):
         test_config = AcceptanceTestsConfig.from_env_vars(env={'DATAFLOW_VERSION': '2.10.0-SNAPSHOT',

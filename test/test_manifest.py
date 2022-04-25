@@ -28,7 +28,7 @@ from cloudfoundry.platform.config.dataflow import DataflowConfig
 from cloudfoundry.platform.config.at_config import AcceptanceTestsConfig
 from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
 from cloudfoundry.platform.config.service import CloudFoundryServicesConfig
-from cloudfoundry.platform.config.at import CloudFoundryATConfig
+from cloudfoundry.platform.config.at import CloudFoundryPlatformConfig
 
 import cloudfoundry.platform.manifest.skipper as skipper_manifest
 import cloudfoundry.platform.manifest.dataflow as dataflow_manifest
@@ -82,14 +82,14 @@ class TestManifest(unittest.TestCase):
         params = {'skipper_uri': 'https://skipper-server.somehost.cf-app.com/api'}
         config = self.config()
         config.test_config.platform = 'kafka'
-        cf_at_config = cf_at_config = CloudFoundryATConfig(deployer_config=config.deployer_config,
-                                                           dataflow_config=config.dataflow_config,
-                                                           skipper_config=config.skipper_config,
-                                                           services_config=config.services_config,
-                                                           kafka_config=KafkaConfig(broker_address="12.345.678.89:9092",
+        cf_at_config = cf_at_config = CloudFoundryPlatformConfig(deployer_config=config.deployer_config,
+                                                                 dataflow_config=config.dataflow_config,
+                                                                 skipper_config=config.skipper_config,
+                                                                 services_config=config.services_config,
+                                                                 kafka_config=KafkaConfig(broker_address="12.345.678.89:9092",
                                                                                     username='user',
                                                                                     password='password'),
-                                                           test_config=config.test_config)
+                                                                 test_config=config.test_config)
 
 
         manifest = dataflow_manifest.create_manifest(cf_at_config=config, params=params)
@@ -151,10 +151,10 @@ class TestManifest(unittest.TestCase):
                                         password="password",
                                         driver_class_name="com.oracle.jdbc.OracleDriver")}
 
-        cf_at_config = CloudFoundryATConfig(deployer_config=deployer_config,
-                                            dataflow_config=dataflow_config,
-                                            skipper_config=SkipperConfig(),
-                                            services_config=CloudFoundryServicesConfig.defaults(),
-                                            test_config=test_config)
+        cf_at_config = CloudFoundryPlatformConfig(deployer_config=deployer_config,
+                                                  dataflow_config=dataflow_config,
+                                                  skipper_config=SkipperConfig(),
+                                                  services_config=CloudFoundryServicesConfig.defaults(),
+                                                  test_config=test_config)
         cf_at_config.datasources_config = datasources_config
         return cf_at_config

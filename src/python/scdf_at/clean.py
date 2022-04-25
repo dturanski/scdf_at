@@ -20,7 +20,7 @@ import sys
 from cloudfoundry.cli import CloudFoundry
 from optparse import OptionParser
 from cloudfoundry.platform import standalone, tile
-from cloudfoundry.platform.config.at import CloudFoundryATConfig
+from cloudfoundry.platform.config.at import CloudFoundryPlatformConfig
 from cloudfoundry.platform.config.dataflow import DataflowConfig
 from cloudfoundry.platform.config.db import DatasourceConfig
 from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
@@ -34,8 +34,8 @@ def cf_config_from_env():
     db_config = DatasourceConfig.from_spring_env_vars()
     dataflow_config = DataflowConfig.from_env_vars()
 
-    return CloudFoundryATConfig(deployer_config=deployer_config, db_config=db_config,
-                                dataflow_config=dataflow_config)
+    return CloudFoundryPlatformConfig(deployer_config=deployer_config, db_config=db_config,
+                                      dataflow_config=dataflow_config)
 
 
 def clean(args):
@@ -52,7 +52,7 @@ def clean(args):
         options, arguments = parser.parse_args(args)
         if options.debug:
             enable_debug_logging()
-        config = CloudFoundryATConfig.from_env_vars()
+        config = CloudFoundryPlatformConfig.from_env_vars()
         cf = CloudFoundry.connect(deployer_config=config.deployer_config, test_config=config.test_config)
         if config.test_config.platform == "tile":
             return tile.clean(cf, config)

@@ -140,7 +140,7 @@ def init_db(config):
         cx_Oracle.init_oracle_client(lib_dir=lib_dir)
         '''Oracle would need to create different user for each. Using shared DB here'''
         init_oracle_db(db, 'xe')
-        skipper_url = dataflow_url = "jdbc:oracle:thin:%s:%d:xe" % (db.host, int(db.port))
+        skipper_url = dataflow_url = "jdbc:oracle:thin:@%s:%d:xe" % (db.host, int(db.port))
         driver_class_name = 'oracle.jdbc.OracleDriver'
     else:
         raise ValueError("Sorry, SQL provider %s is invalid or unsupported." % db.provider)
