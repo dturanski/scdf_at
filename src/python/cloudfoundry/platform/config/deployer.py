@@ -15,6 +15,8 @@ __author__ = 'David Turanski'
 
 import logging
 import os
+import re
+
 from cloudfoundry.platform.config.environment import EnvironmentAware
 
 logger = logging.getLogger(__name__)
@@ -81,6 +83,12 @@ class CloudFoundryDeployerConfig(EnvironmentAware):
      Most of the mapped attributes are for SPRING_APPLICATION_JSON, any that are not explicitly mapped go to the manifest as
      top level server env.
     """
+
+    def trust_certs_host(self):
+        return re.sub('^http[s]?://', '', self.api_endpoint)
+
+    def uaa_host(self):
+        return re.sub('^http[s]?://api', 'uaa', self.api_endpoint)
 
     def as_env(self, excluded=[]):
         env = {}

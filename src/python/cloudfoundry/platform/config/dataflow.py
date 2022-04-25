@@ -29,10 +29,10 @@ class DataflowConfig(EnvironmentAware):
     @classmethod
     def from_env_vars(cls, env=os.environ):
         env = cls.env_vars(env, cls.prefix)
-        kwargs=cls.set_if_present(env, DataflowConfig().__dict__, {
-            'streams_enabled' : lambda x: x.lower() in ['true', 'y','yes'],
-            'tasks_enabled': lambda x: x.lower() in ['true', 'y','yes'],
-            'schedules_enabled': lambda x: x.lower() in ['true', 'y','yes']
+        kwargs = cls.set_if_present(env, DataflowConfig().__dict__, {
+            'streams_enabled': lambda x: x.lower() in ['true', 'y', 'yes'],
+            'tasks_enabled': lambda x: x.lower() in ['true', 'y', 'yes'],
+            'schedules_enabled': lambda x: x.lower() in ['true', 'y', 'yes']
         })
         config = DataflowConfig(**kwargs)
         return config
@@ -48,6 +48,8 @@ class DataflowConfig(EnvironmentAware):
         self.env = env
         self.validate()
         self.kafka_binder_configuration = {}
+        self.oracle_configuration = {}
+        self.trust_certs_configuration = {}
 
     def validate(self):
         if not self.streams_enabled and not self.tasks_enabled:
@@ -62,9 +64,24 @@ class DataflowConfig(EnvironmentAware):
                     DataflowConfig.schedules_enabled_key: self.schedules_enabled
                     })
         env.update(self.kafka_binder_configuration)
+        env.update(self.oracle_configuration)
         return env
 
-    def add_kafka_binder_configuration(self, kafka_config):
+    def add_oracle_application_properties(self):
+        self.oracle_configuration = {
+            'spring.cloud.dataflow.application - properties.task.transactionIsolationLevel':
+                'ISOLATION_READ_COMMITTED'}
+
+    def add_trust_certs_application_properties(self, trust_certs):
+        self.trust_certs_configuration = {}
+        if self.streams_enabled:
+            self.trust_certs_configuration.update({
+                'spring.cloud.dataflow.application-properties.stream.trustCerts': trust_certs})
+        if self.tasks_enabled:
+            self.trust_certs_configuration.update({
+                'spring.cloud.dataflow.application-properties.task.trustCerts': trust_certs})
+
+    def add_kafka_application_properties(self, kafka_config):
         logger.debug('configuring kafka binder')
         if not kafka_config:
             raise ValueError("'kafka_config' is required")

@@ -34,7 +34,7 @@ applications:
   env:
     SPRING_PROFILES_ACTIVE: cloud
     JBP_CONFIG_SPRING_AUTO_RECONFIGURATION: '{enabled: false}'
-    JBP_JRE_VERSION: '$jbp_jre_version'   
+    JBP_CONFIG_OPEN_JDK_JRE: '$jbp_jre_version'   
     SPRING_APPLICATION_NAME: $application_name
     SPRING_CLOUD_SKIPPER_CLIENT_SERVER_URI: '$skipper_uri'
     $datasource_config

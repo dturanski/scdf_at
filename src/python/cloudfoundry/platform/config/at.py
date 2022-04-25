@@ -15,6 +15,7 @@ __author__ = 'David Turanski'
 
 import logging
 import os
+import re
 
 from cloudfoundry.platform.config.environment import EnvironmentAware
 from cloudfoundry.platform.config.db import DBConfig
@@ -70,13 +71,23 @@ class CloudFoundryPlatformConfig(EnvironmentAware):
 
     def configure(self, env):
         logger.info("Configuring CloudFoundry Acceptance Test Context for platform %s" % self.test_config.platform)
+        # TODO: create a function to encapsulate dataflow config
         if self.dataflow_config.streams_enabled and self.kafka_config:
             logger.debug("configuring dataflow instance for Kafka")
-            self.dataflow_config.add_kafka_binder_configuration(self.kafka_config)
+            self.dataflow_config.add_kafka_application_properties(self.kafka_config)
             self.remove_required_service('rabbit')
             if 'rabbit' in self.test_config.stream_services:
                 logger.warning('removing rabbit from stream services for Kafka binder')
                 self.test_config.stream_services.remove('rabbit')
+        if self.dataflow_config.tasks_enabled and self.db_config and self.db_config.provider == 'oracle':
+            self.dataflow_config.add_oracle_application_properties()
+
+        self.dataflow_config.add_trust_certs_application_properties(self.deployer_config.uaa_host())
+        ###
+
+        if not self.test_config.cert_host:
+            self.test_config.cert_host = self.deployer_config.uaa_host()
+        logger.debug('cert_host=%s' % self.test_config.cert_host)
 
         if self.test_config.platform == 'cloudfoundry':
             self.configure_for_cloudfoundry(env)
@@ -87,7 +98,7 @@ class CloudFoundryPlatformConfig(EnvironmentAware):
         if not self.services_config or not self.services_config.get('dataflow'):
             raise ValueError("'dataflow' service is required for tile")
         if not self.deployer_config:
-            CloudFoundryDeployerConfig.assert_required_keys(self.env)
+            CloudFoundryDeployerConfig.assert_required_keys(env)
             raise ValueError("'deployer_config' is required")
 
         self.remove_required_service('rabbit')

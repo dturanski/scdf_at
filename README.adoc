@@ -99,6 +99,9 @@ which is not true of the tile, which uses its own configuration mapping.
 The standalone platform uses the following additional configuration properties:
 
 [source, bash]
+#
+# Trust certs from the api host, derived from the deployer url by default
+#
 #export TRUST_CERTS=api.sys.somehost.cf-app.com
 #export JBP_JRE_VERSION="1.8. +"
 #export BUILDPACK=java_buildpack_offline
@@ -127,7 +130,14 @@ The tile works with external DB, and an external Kafka broker if configured for 
 work with the Scheduler service and/or the Config Server. This is useful for verifying tile releases.
 
 === Tile Configuration
-No additional configuration properties are required for the tile.
+Additional configuration properties are applied for the tile:
+
+[source, bash]
+#
+# Default is derived from deployer api endpoint, but it may be possible to configure an external
+# OAuth server.
+#
+#export CERT_HOST=uaa.sys.some_host.cf-app.com
 
 == App Registration
 When the dataflow server is up and running, pre-packaged stream and task apps are automatically registered from a configurable location.

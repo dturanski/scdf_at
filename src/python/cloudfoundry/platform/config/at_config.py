@@ -28,12 +28,12 @@ class AcceptanceTestsConfig(EnvironmentAware):
 
     @classmethod
     def from_env_vars(cls, env=os.environ):
-        kwargs = cls.set_if_present(env, AcceptanceTestsConfig().__dict__, converters = {
+        kwargs = cls.set_if_present(env, AcceptanceTestsConfig().__dict__, converters={
             'deploy_wait_sec': lambda x: int(x),
             'max_retries': lambda x: int(x),
             'maven_repos': lambda x: json.loads(x),
             'task_services': lambda x: x.split(','),
-            'stream_services' :  lambda x: x.split(',')
+            'stream_services': lambda x: x.split(',')
         })
         config = AcceptanceTestsConfig(**kwargs)
         return config
@@ -54,7 +54,9 @@ class AcceptanceTestsConfig(EnvironmentAware):
                  config_server_enabled=False,
                  task_services=['mysql'],
                  stream_services=['rabbit'],
-                 task_apps_uri='https://dataflow.spring.io/task-maven-latest'):
+                 task_apps_uri='https://dataflow.spring.io/task-maven-latest',
+                 cert_host=None,
+                 ):
         self.platform = platform
         self.binder = binder
         self.dataflow_version = dataflow_version
@@ -71,6 +73,7 @@ class AcceptanceTestsConfig(EnvironmentAware):
         self.task_services = task_services
         self.stream_services = stream_services
         self.task_apps_uri = task_apps_uri
+        self.cert_host=cert_host
 
         if self.binder == 'rabbit':
             self.stream_apps_uri = 'https://dataflow.spring.io/rabbitmq-maven-latest'
