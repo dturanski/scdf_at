@@ -44,11 +44,11 @@ export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD=password
 #
 # External DB configuration (
 #
-export SQL_PROVIDER="oracle"
-export SQL_HOST=postgres_host
+export SQL_PROVIDER="postgresql"
+export SQL_HOST=postgresql_host
 export SQL_PORT=5432
-export SQL_PASSWORD=postgres_password
-export SQL_USERNAME=postgres_username
+export SQL_PASSWORD=postgresql_password
+export SQL_USERNAME=postgresql_username
 export SQL_INDEX=0
 #
 # External Kafka Configuration
