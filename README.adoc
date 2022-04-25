@@ -183,8 +183,6 @@ It sets up the local environment to run the above commands:
 
 === Run the tests,
 
-[source, bash]
-
 Load `cf_at.properties`, perform any additional setup, and run a maven command.
 
 
