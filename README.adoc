@@ -65,7 +65,8 @@ export KAFKA_PASSWORD=password
 #
 # Default CF Service definitions. These configurations are all available if the service is needed.
 # Which services are actually required is determined by the platform configuration.
-# The tile requires dataflow, and works with the scheduler, and config server, but provides its own proxy ralational and broker services
+# The tile requires dataflow, and works with the scheduler, and config server,
+# but provides its own proxy relational and broker services
 # in place of rabbit and SQL. Services are automatically removed when analyzing the aggregate environment.
 #
 ### SQL Service to bind to skipper and dataflow if no external datasource configured
