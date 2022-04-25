@@ -215,7 +215,7 @@ class CloudFoundry:
 
     def delete_service_key(self, service_name, key_name):
         if self.service_key(service_name, key_name):
-            logger.info("deleting service key % for service %s" % (key_name, service_name))
+            logger.info("deleting service key %s for service %s" % (key_name, service_name))
             proc = self.shell.exec("cf delete-service-key -f %s %s" % (service_name, key_name))
             if proc.returncode:
                 logger.error(self.shell.stdout_to_s(proc))
