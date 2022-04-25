@@ -25,6 +25,7 @@ from cloudfoundry.platform.config.service import ServiceConfig
 from scdf_at import enable_debug_logging
 from scdf_at.db import init_db
 from cloudfoundry.platform.registration import register_apps
+from scdf_at.util import masked
 
 logger = logging.getLogger(__name__)
 
@@ -74,14 +75,15 @@ def setup(args):
         ensure_required_services(cf, config.services_config)
 
         if config.test_config.platform == "tile":
-            properties = tile.setup(cf, config)
+            runtime_properties = tile.setup(cf, config)
         elif config.test_config.platform == "cloudfoundry":
-            properties = standalone.setup(cf, config, options.do_not_download)
+            runtime_properties = standalone.setup(cf, config, options.do_not_download)
         else:
             logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % config.test_config.platform)
-        dataflow_uri = properties['SERVER_URI']
+        dataflow_uri = runtime_properties['SERVER_URI']
 
         register_apps(cf, config, dataflow_uri)
+        return runtime_properties
     except SystemExit:
         parser.print_help()
         exit(1)
@@ -95,10 +97,10 @@ def ensure_required_services(cf, services_config):
 
     for required_service in services_config.values():
         if required_service not in [ServiceConfig.of_service(service) for service in services]:
-            logger.debug("Adding %s to required services" % required_service)
+            logger.debug("Adding %s to required services" % masked(required_service))
             required_services['create'].append(required_service)
         else:
-            logger.debug("Checking health of required service %s" % str(required_service))
+            logger.debug("Checking health of required service %s" % masked(required_service))
             for service in services:
                 if ServiceConfig.of_service(service) == required_service:
                     if service.status not in ['create succeeded', 'update succeeded']:
@@ -113,7 +115,7 @@ def ensure_required_services(cf, services_config):
                         else:
                             required_services['unknown'].append(service)
                 else:
-                    logger.debug("required service is healthy %s" % str(required_service))
+                    logger.debug("required service is healthy %s" % masked(required_service))
 
         for s in required_services['deleting']:
             logger.info("waiting for required service %s to be deleted" % str(s))

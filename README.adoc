@@ -1,10 +1,10 @@
 = Spring Cloud Data Flow Acceptance Tests For Cloud Foundry
 
 [NOTE]
-This is a Python 3 port of the Cloud Foundry setup for SCDF acceptance tests.
+This is a Python 3 port of the Cloud Foundry setup from https://github.com/spring-cloud/spring-cloud-dataflow-acceptance-tests[SCDF acceptance tests].
 
 == About
-This project started as a better way to setup SCDF in a Cloud Foundry environment to support Spring Cloud Data Flow internal acceptance testing.
+This project started as an better way setup SCDF in a Cloud Foundry environment to support Spring Cloud Data Flow internal acceptance testing.
 The bash scripts served their purpose but started to get crushed under their own weight as we added new configuration requirements.
 
 Now I think it's a generally useful tool for installing SCDF in any test or production environment.
@@ -28,7 +28,7 @@ If you are into project Reactor or want to learn about it, this would be a great
 in many ways the deployer doesn't.
 
 But the CF interface turned out to be about 20% of this code. The configuration is the main thing, and for that I needed something
-akin to Spring Boot. So it can be done, but I imagine you would have to disable some of boot's auto-config that might
+akin to Spring Boot, or at least Spring Framework Environment. So it can be done, but I imagine you would have to disable some of boot's auto-config that might
 recognize some of these properties intended only for the CF deployment.
 
 ==== SQL Database

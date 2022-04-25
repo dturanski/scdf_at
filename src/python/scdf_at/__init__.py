@@ -1,5 +1,6 @@
 import sys, os, logging
 from json import JSONEncoder
+import re
 
 sys.path.append(os.path.join(sys.path[0], ".."))
 
@@ -18,6 +19,22 @@ def json_patch():
 json_patch()
 
 logging.basicConfig(level=logging.INFO, format='%(name)s - %(asctime)s - %(levelname)s:  %(message)s')
+
+
+class SensitiveFormatter(logging.Formatter):
+    """Formatter that removes sensitive information in urls."""
+
+    @staticmethod
+    def _filter(s):
+        return re.sub(r':\/\/(.*?)\@', r'://', s)
+
+    def format(self, record):
+        original = logging.Formatter.format(self, record)
+        return self._filter(original)
+
+
+for handler in logging.root.handlers:
+    handler.setFormatter(SensitiveFormatter())
 
 
 def enable_debug_logging():

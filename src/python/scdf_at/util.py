@@ -17,7 +17,7 @@ import logging
 import time
 import requests
 import json
-import os
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -56,16 +56,27 @@ def wait_for_200(poller, url):
                            fail_message=url + " is down")
 
 
-def masked(a_dict):
-    values = a_dict.copy()
+def masked(obj):
+    return json.dumps(obj, indent=4)
+
+
+def __masked___(obj):
+    if hasattr(obj, '__dict__'):
+        the_dict = obj.__dict__
+    elif type(obj) is dict:
+        the_dict = obj
+    elif type(obj) is str:
+        if not urlparse(obj).scheme:
+            return obj
+        return obj
+
+    values = the_dict.copy()
     for k, v in values.items():
         if type(v) is dict:
-            for (_k_, _v_) in v.items():
-                values[k][_k_] = mask(_k_, _v_)
+            values[k] = __masked___(v)
         else:
             values[k] = mask(k, v)
-
-    return json.dumps(values, indent=4)
+    return values
 
 
 def mask(k, v):

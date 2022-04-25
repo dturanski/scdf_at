@@ -18,7 +18,7 @@ import logging
 import re
 from scdf_at.shell import Shell
 from cloudfoundry.domain import Service, App
-from scdf_at.util import Poller
+from scdf_at.util import Poller, masked
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +143,7 @@ class CloudFoundry:
         return self.shell.exec(cmd)
 
     def create_service(self, service_config):
-        logger.info("creating service " + json.dumps(service_config))
+        logger.info("creating service " + masked(service_config))
 
         # Looks like pretty clean code, but having to pass this mess on the command line? WTF
         config = "-c '%s'" % json.dumps(service_config.config) if service_config.config else ""
@@ -220,7 +220,7 @@ class CloudFoundry:
             if proc.returncode:
                 logger.error(self.shell.stdout_to_s(proc))
             else:
-                proc = self.shell("service-key %s %s deleted" % (service_name, key_name))
+                logger.info("service-key %s %s deleted" % (service_name, key_name))
             return proc
         else:
             logger.info("service key % %s does not exist" % (service_name, key_name))
