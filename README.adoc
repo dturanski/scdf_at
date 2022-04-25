@@ -44,18 +44,21 @@ export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD=password
 #
 # External DB configuration (
 #
-export SQL_PROVIDER="postgresql"
-export SQL_HOST=postgresql_host
-export SQL_PORT=5432
-export SQL_PASSWORD=postgresql_password
-export SQL_USERNAME=postgresql_username
-export SQL_INDEX=0
+#export SQL_PROVIDER="postgresql"
+#export SQL_HOST=postgresql_host
+#export SQL_PORT=5432
+#export SQL_PASSWORD=postgresql_password
+#export SQL_USERNAME=postgresql_username
+#
+# SQL_INDEX used as a suffix for the dbname to create unique schemas per environment
+#
+#export SQL_INDEX=0
 #
 # External Kafka Configuration
 #
-export KAFKA_BROKER_ADDRESS=kafka-host:9092
-export KAFKA_USERNAME=user
-export KAFKA_PASSWORD=password
+#export KAFKA_BROKER_ADDRESS=kafka-host:9092
+#export KAFKA_USERNAME=user
+#export KAFKA_PASSWORD=password
 #
 # Dataflow server configuration defaults
 #
