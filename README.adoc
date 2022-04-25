@@ -53,9 +53,9 @@ export SQL_INDEX=0
 #
 # External Kafka Configuration
 #
-export KAFKA_BROKER_ADDRESS=35.227.103.143:9092
-export KAFKA_USERNAME=admin
-export KAFKA_PASSWORD=bitnami
+export KAFKA_BROKER_ADDRESS=kafka-host:9092
+export KAFKA_USERNAME=user
+export KAFKA_PASSWORD=password
 #
 # Dataflow server configuration defaults
 #
