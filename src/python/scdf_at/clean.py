@@ -54,10 +54,19 @@ def clean(args):
             enable_debug_logging()
         config = CloudFoundryPlatformConfig.from_env_vars()
         cf = CloudFoundry.connect(deployer_config=config.deployer_config, test_config=config.test_config)
+        if config.services_config and not options.apps_only:
+            logger.info("deleting current services...")
+            services = cf.services()
+            for service in services:
+                cf.delete_service(service.name)
+        else:
+            logger.info("'apps-only' option is set, keeping existing current services")
+        logger.info("cleaning apps")
+        cf.delete_apps()
         if config.test_config.platform == "tile":
             return tile.clean(cf, config)
         elif config.test_config.platform == "cloudfoundry":
-            return standalone.clean(cf, config, options.apps_only)
+            return standalone.clean(cf, config)
         else:
             logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % config.test_config.platform)
 

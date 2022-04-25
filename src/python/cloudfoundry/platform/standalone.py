@@ -36,7 +36,6 @@ import cloudfoundry.platform.manifest.dataflow as dataflow_manifest
 
 from scdf_at.shell import Shell
 from scdf_at.util import Poller, wait_for_200
-from cloudfoundry.platform.registration import register_apps
 
 logger = logging.getLogger(__name__)
 
@@ -80,21 +79,11 @@ def setup(cf, config, do_not_download, shell=Shell()):
     dataflow_uri = "https://" + dataflow_app.route
     if not wait_for_200(poller, dataflow_uri):
         raise RuntimeError("dataflow server deployment failed")
-
-    register_apps(cf, config, dataflow_uri)
-    return dataflow_uri
+    return {'SERVER_URI': dataflow_uri}
 
 
-def clean(cf, config, apps_only):
-    if config.services_config and not apps_only:
-        logger.info("deleting current services...")
-        services = cf.services()
-        for service in services:
-            cf.delete_service(service.name)
-    else:
-        logger.info("'apps-only' option is set, keeping existing current services")
-    logger.info("cleaning apps")
-    cf.delete_apps()
+def clean(cf, config):
+    pass
 
 
 def deploy(cf, application_name, manifest_path, create_manifest, cf_config, params={}):

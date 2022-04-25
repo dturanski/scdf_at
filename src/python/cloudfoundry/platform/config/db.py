@@ -71,7 +71,8 @@ class DatasourceConfig(JSonEnabled):
     password_key = prefix + "PASSWORD"
     driver_class_name_key = prefix + 'DRIVER_CLASS_NAME'
 
-    def __init__(self, url, username, password, driver_class_name):
+    def __init__(self, name, url, username, password, driver_class_name):
+        self.name = name
         self.url = url
         self.username = username
         self.password = password
@@ -79,6 +80,8 @@ class DatasourceConfig(JSonEnabled):
         self.validate()
 
     def validate(self):
+        if not self.name:
+            raise ValueError("'name' is required")
         if not self.url:
             raise ValueError("'url' is required")
         if not self.username:

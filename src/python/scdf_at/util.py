@@ -16,6 +16,7 @@ __author__ = 'David Turanski'
 import logging
 import time
 import requests
+import json
 import os
 
 logger = logging.getLogger(__name__)
@@ -54,5 +55,26 @@ def wait_for_200(poller, url):
                            success_message=url + " is up!",
                            fail_message=url + " is down")
 
-def server_uri():
-    return os.getenv('SERVER_URI')
+
+def masked(a_dict):
+    values = a_dict.copy()
+    for k, v in values.items():
+        if type(v) is dict:
+            for (_k_, _v_) in v.items():
+                values[k][_k_] = mask(_k_, _v_)
+        else:
+            values[k] = mask(k, v)
+
+    return json.dumps(values, indent=4)
+
+
+def mask(k, v):
+    secret_words = ['password', 'secret', 'username', 'credentials']
+    for secret in secret_words:
+        if secret in k.lower():
+            return "********" if v else None
+
+    for secret in secret_words:
+        if type(v) is str and secret in v.lower():
+            return "********"
+    return v

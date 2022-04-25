@@ -15,6 +15,7 @@ __author__ = 'David Turanski'
 
 import json
 import re
+import scdf_at.util as util
 
 
 class JSonEnabled(json.JSONEncoder):
@@ -22,34 +23,14 @@ class JSonEnabled(json.JSONEncoder):
         return self.__dict__.copy()
 
     def masked(self):
-        values = self.__dict__.copy()
-        for k, v in values.items():
-            if type(v) is dict:
-                for (_k_, _v_) in v.items():
-                    values[k][_k_] = self.mask(_k_, _v_)
-            else:
-                values[k] = self.mask(k, v)
-
-        return json.dumps(values)
-
-    def mask(self, k, v):
-        secret_words = ['password', 'secret', 'username', 'credentials']
-        for secret in secret_words:
-            if secret in k.lower():
-                return "********" if v else None
-
-        for secret in secret_words:
-            if type(v) is str and secret in v.lower():
-                return "********"
-        return v
+        return util.masked(self.__dict__)
 
     def __str__(self):
         return json.dumps(self)
 
 
-
 class App(JSonEnabled):
-    pattern = re.compile('(.+)\:\s+(.*)')
+    pattern = re.compile('(.+):\s+(.*)')
 
     @classmethod
     def parse(cls, contents):

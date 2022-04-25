@@ -14,111 +14,92 @@ Copyright 2022 the original author or authors.
 __author__ = 'David Turanski'
 
 import logging
-import json
-import sys
-import subprocess
-import re
+import os
+import shutil
+from scdf_at.util import masked
+from os.path import exists
+
+from scdf_at.shell import Shell
 
 logger = logging.getLogger(__name__)
 
 
-def credentials_from_service_key():
-    dataflow_service_instance = sys.argv[1]
-    service_key = sys.argv[2]
-    get_service_key = "cf service-key %s %s" % (dataflow_service_instance, service_key)
-    out = subprocess.getoutput(get_service_key)
-    if 'FAILED' in out:
-        print(out)
-        exit(1)
-
-    creds = re.sub("Getting key.+\n", "", out)
-    doc = json.loads(creds)
-    print("export SPRING_CLOUD_DATAFLOW_CLIENT_AUTHENTICATION_TOKEN_URI=%s; " % doc['access-token-url'])
-    print("export SPRING_CLOUD_DATAFLOW_CLIENT_AUTHENTICATION_CLIENT_ID=%s; " % doc['client-id'])
-    print("export SPRING_CLOUD_DATAFLOW_CLIENT_AUTHENTICATION_CLIENT_SECRET=%s; " % doc['client-secret'])
-    print("export SPRING_CLOUD_DATAFLOW_CLIENT_SERVER_URI=%s" % doc['dataflow-url'])
+def client_credentials_from_service_key(cf, service_name, key_name):
+    service_key = cf.create_service_key(service_name, key_name)
+    cf.delete_service_key(service_name, key_name)
+    return {
+        'SPRING_CLOUD_DATAFLOW_CLIENT_AUTHENTICATION_TOKEN_URI': service_key['access-token-url'],
+        'SPRING_CLOUD_DATAFLOW_CLIENT_AUTHENTICATION_CLIENT_ID': service_key['client-id'],
+        'SPRING_CLOUD_DATAFLOW_CLIENT_AUTHENTICATION_CLIENT_SECRET': service_key['client-secret'],
+        'SPRING_CLOUD_DATAFLOW_CLIENT_SERVER_URI': service_key['dataflow-url'],
+        'SERVER_URI': service_key['dataflow-url']
+    }
 
 
 def setup(cf, config):
-    cf.deployer_config.log_masked()
-    if config.service_configs:
-        logger.info("Setting up services...")
-        logger.debug("Getting current services...")
-        services = cf.services()
-        logger.debug("checking required services:" + json.dumps(config.service_configs))
+    setup_certs(config.test_config.cert_host)
+    service_name = config.services_config['dataflow'].name
+    key_name = config.test_config.service_key_name
+    return client_credentials_from_service_key(cf, service_name, key_name)
 
 
-def clean(cf, config, apps_only):
-    cf.deployer_config.log_masked()
-    if config.service_configs:
-        logger.info("deleting current services...")
-        services = cf.services()
-    else:
-        logger.info("using current services...")
+def configure_dataflow_service(config):
+    logger.info("configuring dataflow tile")
+    dataflow_tile_configuration = {'maven-cache': True}
+    #
+    # TODO: It does appear that you can pass any native properties this way, but this is undocumented AFAIK
+    #
+    dataflow_tile_configuration.update(config.dataflow_config.as_env())
+    if config.dataflow_config.schedules_enabled:
+        scheduler = config.services_config['scheduler']
+        dataflow_tile_configuration.update({'scheduler': {'name': scheduler.name, 'plan': scheduler.plan}})
+    if config.db_config:
+        if config.dataflow_config.streams_enabled:
+            print(config.datasources_config.get('skipper'))
+            dataflow_tile_configuration['skipper-relational'] = user_provided(config.datasources_config.get('skipper'))
+        if config.dataflow_config.tasks_enabled:
+            dataflow_tile_configuration['relational-data-service'] = user_provided(config.datasources_config.get('dataflow'))
+    logger.debug("dataflow_tile_configuration:\n%s" % masked(dataflow_tile_configuration))
+    return dataflow_tile_configuration
 
-# def user_provided_postgresql(self,db, server):
-#     name = dbname(db, server)
-#     user_provided = {}
-#     port = int(db['port'])
-#     user_provided['uri'] = "postgresql://%s:%d/%s?user=%s&password=%s" % (
-#     db['host'], port, name, db['username'], db['password'])
-#     user_provided['jdbcUrl'] = "jdbc:%s" % user_provided['uri']
-#     user_provided['username'] = db['username']
-#     user_provided['password'] = db['password']
-#     user_provided['dbname'] = name
-#     user_provided['host'] = db['host']
-#     user_provided['port'] = port
-#     user_provided['tags'] = ['postgres']
-#     ups = {}
-#     ups['user-provided'] = user_provided
-#     return ups
-#
-# def user_provided_oracle(self, db, server):
-#     name = dbname(db, server)
-#     user_provided = {}
-#     port = int(db['port'])
-#     user_provided['uri'] = "oracle:thin://%s:%d/%s?user=%s&password=%s" % (
-#     db['host'], port, name, db['username'], db['password'])
-#     user_provided['jdbcUrl'] = "jdbc:%s" % user_provided['uri']
-#     user_provided['username'] = db['username']
-#     user_provided['password'] = db['password']
-#     user_provided['dbname'] = name
-#     user_provided['host'] = db['host']
-#     user_provided['port'] = port
-#     user_provided['tags'] = ['oracle']
-#     ups = {}
-#     ups['user-provided'] = user_provided
-#     return ups
-#
-# def user_provided(self, db, server):
-#     if db['provider'] == 'postgresql':
-#         return self.user_provided_postgresql(db, server)
-#     elif db['provider'] == 'oracle':
-#         return self.user_provided_oracle(db, server)
-#     else:
-#         raise Exception("Invalid db provider %s" % db['provider'])
-#
-# schedules_enabled = os.getenv(
-#     "SPRING_CLOUD_DATAFLOW_FEATURES_SCHEDULES_ENABLED", 'false')
-# dataflow_tile_configuration = os.getenv("DATAFLOW_TILE_CONFIGURATION")
-# if dataflow_tile_configuration:
-#     config = json.loads(dataflow_tile_configuration)
-#
-# if not config.get('relational-data-service') or not config.get('skipper-relational'):
-#     db
-#
-# if not config.get('skipper-relational'):
-#     config['skipper-relational'] = user_provided(db, 'skipper')
-#
-# if not config.get('relational-data-service'):
-#     config['relational-data-service'] = user_provided(db, 'dataflow')
-#
-# if not config.get('maven-cache'):
-#     config['maven-cache'] = True
-#
-# if schedules_enabled.lower() == 'true' and not 'scheduler' in config.keys():
-#     schedules_service_name = os.environ['SCHEDULES_SERVICE_NAME']
-#     schedules_plan_name = os.environ['SCHEDULES_PLAN_NAME']
-#     config['scheduler'] = {'name': schedules_service_name, 'plan': schedules_plan_name}
-# if config:
-#     print(json.dumps(config))
+
+def setup_certs(cert_host, shell=Shell()):
+    logger.debug("importing the cert_host certificate for %s to a JDK trust-store" % cert_host)
+    proc = shell.exec(
+        'openssl s_client -connect %s:443 -showcerts > %s.cer < /dev/null' % (cert_host, cert_host))
+    if proc.returncode > 0:
+        logger.warning('openssl command returns a non zero status, but seems to work anyway')
+    java_home = os.getenv('JAVA_HOME')
+    if not java_home:
+        raise ValueError('JAVA_HOME is not set')
+    # The cacerts location is different for Java 8 and 11.
+    # Java 1.8
+    jre_cacerts = "%s/jre/lib/security/cacerts" % java_home
+    if not exists(jre_cacerts):
+        logger.info("%s does not exist" % jre_cacerts)
+        # Java 11
+        jre_cacerts = "%s/lib/security/cacerts" % java_home
+        logger.info("trying %s" % jre_cacerts)
+    if not exists(jre_cacerts):
+        raise RuntimeError("%s does not exist" % jre_cacerts)
+    shutil.copyfile(jre_cacerts, 'mycacerts')
+    proc = shell.exec(
+        '%s/bin/keytool -import -alias myNewCertificate -file %s.cer -noprompt -keystore mycacerts -storepass changeit'
+        % (java_home, cert_host))
+    if proc.returncode > 0:
+        raise RuntimeError("Unable to create keystore ' %s" % shell.stdout_to_s(proc))
+
+
+def user_provided(datasource_config):
+    return {'user-provided':
+                {'uri': datasource_config.url.replace('jdbc:', ''),
+                 'jdbcUrl': datasource_config.url,
+                 'username': datasource_config.username,
+                 'password': datasource_config.password,
+                 'dbname': datasource_config.name
+                 }
+            }
+
+
+def clean(cf, config):
+    pass

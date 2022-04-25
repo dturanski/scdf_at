@@ -71,6 +71,10 @@ class CloudFoundryPlatformConfig(EnvironmentAware):
 
     def configure(self, env):
         logger.info("Configuring CloudFoundry Acceptance Test Context for platform %s" % self.test_config.platform)
+        if not self.deployer_config:
+            CloudFoundryDeployerConfig.assert_required_keys(env)
+            raise ValueError("'deployer_config' is required")
+
         # TODO: create a function to encapsulate dataflow config
         if self.dataflow_config.streams_enabled and self.kafka_config:
             logger.debug("configuring dataflow instance for Kafka")
@@ -85,6 +89,10 @@ class CloudFoundryPlatformConfig(EnvironmentAware):
         self.dataflow_config.add_trust_certs_application_properties(self.deployer_config.uaa_host())
         ###
 
+        if not self.dataflow_config.schedules_enabled:
+            logger.debug('Scheduler is not enabled. Removing scheduler service')
+            self.remove_required_service('scheduler')
+
         if not self.test_config.cert_host:
             self.test_config.cert_host = self.deployer_config.uaa_host()
         logger.debug('cert_host=%s' % self.test_config.cert_host)
@@ -97,14 +105,8 @@ class CloudFoundryPlatformConfig(EnvironmentAware):
     def configure_for_tile(self, env):
         if not self.services_config or not self.services_config.get('dataflow'):
             raise ValueError("'dataflow' service is required for tile")
-        if not self.deployer_config:
-            CloudFoundryDeployerConfig.assert_required_keys(env)
-            raise ValueError("'deployer_config' is required")
-
         self.remove_required_service('rabbit')
         self.remove_required_service('sql')
-        if not self.test_config.scheduler_enabled:
-            self.remove_required_service('scheduler')
         if not self.test_config.config_server_enabled:
             self.remove_required_service('config')
 
@@ -140,9 +142,6 @@ class CloudFoundryPlatformConfig(EnvironmentAware):
             logger.debug('removing rabbit service for binder %s' % self.test_config.binder)
             self.remove_required_service('rabbit')
 
-        if not self.test_config.scheduler_enabled:
-            logger.debug('Scheduler is not enabled. Removing scheduler service')
-            self.remove_required_service('scheduler')
         if not self.test_config.config_server_enabled:
             logger.debug('Config Server is not enabled. Removing config service')
             self.remove_required_service('config')

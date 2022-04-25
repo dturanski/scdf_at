@@ -49,13 +49,13 @@ class AcceptanceTestsConfig(EnvironmentAware):
                  max_retries=60,  # 20 min max wait time for a service or app to come up
                  buildpack='java_buildpack_offline',
                  maven_repos={'repo1': 'https://repo.spring.io/libs-snapshot'},
-                 jbp_jre_version='1.8 +',
-                 scheduler_enabled=False,
+                 jbp_jre_version="{ jre: { version: 1.8.+ }}",
                  config_server_enabled=False,
                  task_services=['mysql'],
                  stream_services=['rabbit'],
                  task_apps_uri='https://dataflow.spring.io/task-maven-latest',
                  cert_host=None,
+                 service_key_name='scdf-at'
                  ):
         self.platform = platform
         self.binder = binder
@@ -68,12 +68,12 @@ class AcceptanceTestsConfig(EnvironmentAware):
         self.buildpack = buildpack
         self.maven_repos = maven_repos
         self.jbp_jre_version = jbp_jre_version
-        self.scheduler_enabled = scheduler_enabled
         self.config_server_enabled = config_server_enabled
         self.task_services = task_services
         self.stream_services = stream_services
         self.task_apps_uri = task_apps_uri
-        self.cert_host=cert_host
+        self.cert_host = cert_host
+        self.service_key_name = service_key_name
 
         if self.binder == 'rabbit':
             self.stream_apps_uri = 'https://dataflow.spring.io/rabbitmq-maven-latest'

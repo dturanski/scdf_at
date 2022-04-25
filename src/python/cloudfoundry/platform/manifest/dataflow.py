@@ -53,7 +53,7 @@ def create_manifest(cf_at_config, application_name='dataflow-server', params={})
     deployer_config = cf_at_config.deployer_config
     app_deployment = {'services': test_config.task_services}
     if test_config.scheduler_enabled:
-        app_deployment['scheduler-url'] = deployer_config.scheduler_url
+        app_deployment['scheduler-url'] = cf_at_config.dataflow_config.scheduler_url
     server_services = [cf_at_config.services_config.get('sql').name] if cf_at_config.services_config.get('sql') else []
     excluded_deployer_props = deployer_config.required_keys
     excluded_deployer_props.extend([deployer_config.skip_ssl_validation_key])

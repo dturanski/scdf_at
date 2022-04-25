@@ -147,10 +147,13 @@ def init_db(config):
 
     datasource_configs = {
         "dataflow": DatasourceConfig(url=dataflow_url,
+                                     name=db_name('dataflow', db, binder),
                                      username=db.username,
                                      password=db.password,
                                      driver_class_name=driver_class_name),
-        "skipper": DatasourceConfig(url=skipper_url,
+        "skipper": DatasourceConfig(
+                                    name=db_name('skipper', db, binder),
+                                    url=skipper_url,
                                     username=db.username,
                                     password=db.password,
                                     driver_class_name=driver_class_name),

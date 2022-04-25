@@ -24,6 +24,7 @@ from cloudfoundry.platform.config.at import CloudFoundryPlatformConfig
 from cloudfoundry.platform.config.service import ServiceConfig
 from scdf_at import enable_debug_logging
 from scdf_at.db import init_db
+from cloudfoundry.platform.registration import register_apps
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,7 @@ def setup(args):
 
     try:
         config = CloudFoundryPlatformConfig.from_env_vars()
-        logger.debug("Setup using config:\n" + json.dumps(config, indent=4))
+        logger.debug("Setup using config:\n" + json.dumps(config.masked(), indent=4))
         add_options_for_platform(parser, config.test_config.platform)
         options, arguments = parser.parse_args(args)
         if options.debug:
@@ -56,27 +57,43 @@ def setup(args):
         if config.db_config:
             config.datasources_config = init_db(config)
 
-        ensure_required_services(cf, config)
+        if config.services_config.get('scheduler'):
+            ensure_required_services(cf, dict(
+                filter(lambda entry: entry[0] == 'scheduler', config.services_config.items())))
+            config.remove_required_service('scheduler')
+            logger.debug("getting scheduler_url from service_key")
+            service_name = config.services_config['scheduler'].name
+            key_name = config.test_config.service_key_name
+            service_key = cf.create_service_key(service_name, key_name)
+            config.deployer_config.scheduler_url = service_key['url']
+            cf.delete_service_key(service_key, key_name)
+
         if config.test_config.platform == "tile":
-            return tile.setup(cf, config)
+            config.services_config['dataflow'].config = tile.configure_dataflow_service(config)
+
+        ensure_required_services(cf, config.services_config)
+
+        if config.test_config.platform == "tile":
+            properties = tile.setup(cf, config)
         elif config.test_config.platform == "cloudfoundry":
-            return standalone.setup(cf, config, options.do_not_download)
+            properties = standalone.setup(cf, config, options.do_not_download)
         else:
             logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % config.test_config.platform)
+        dataflow_uri = properties['SERVER_URI']
 
-
+        register_apps(cf, config, dataflow_uri)
     except SystemExit:
         parser.print_help()
         exit(1)
 
 
-def ensure_required_services(cf, cf_at_config):
-    logger.info("verifying availability of required services:" + str([str(s) for s in cf_at_config.services_config]))
+def ensure_required_services(cf, services_config):
+    logger.info("verifying availability of required services:" + str([str(s) for s in services_config]))
 
     services = cf.services()
     required_services = {'create': [], 'wait': [], 'failed': [], 'deleting': [], 'unknown': []}
 
-    for required_service in cf_at_config.services_config.values():
+    for required_service in services_config.values():
         if required_service not in [ServiceConfig.of_service(service) for service in services]:
             logger.debug("Adding %s to required services" % required_service)
             required_services['create'].append(required_service)
@@ -116,10 +133,9 @@ def ensure_required_services(cf, cf_at_config):
 
 
 if __name__ == '__main__':
-    dataflow_server_uri = setup(sys.argv)
-    #TODO not sure a better way to make this available to calling shell script
+    shared_properties = setup(sys.argv)
+    # TODO not sure a better way to make this available to calling shell script
     with open('cf_at.properties', 'w') as output:
-        output.write('SERVER_URI=%s\n' %dataflow_server_uri)
+        for k, v in shared_properties.items():
+            output.write('%s=%s\n' % (k, v))
     output.close()
-
-

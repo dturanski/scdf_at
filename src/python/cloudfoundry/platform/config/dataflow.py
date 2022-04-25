@@ -65,21 +65,23 @@ class DataflowConfig(EnvironmentAware):
                     })
         env.update(self.kafka_binder_configuration)
         env.update(self.oracle_configuration)
+        env.update(self.trust_certs_configuration)
         return env
 
     def add_oracle_application_properties(self):
+        # A work around for ComposedTaskRunner with Oracle, other tasks ignore
         self.oracle_configuration = {
-            'spring.cloud.dataflow.application - properties.task.transactionIsolationLevel':
+            'spring.cloud.dataflow.applicationProperties.task.transactionIsolationLevel':
                 'ISOLATION_READ_COMMITTED'}
 
     def add_trust_certs_application_properties(self, trust_certs):
         self.trust_certs_configuration = {}
         if self.streams_enabled:
             self.trust_certs_configuration.update({
-                'spring.cloud.dataflow.application-properties.stream.trustCerts': trust_certs})
+                'spring.cloud.dataflow.applicationProperties.stream.trustCerts': trust_certs})
         if self.tasks_enabled:
             self.trust_certs_configuration.update({
-                'spring.cloud.dataflow.application-properties.task.trustCerts': trust_certs})
+                'spring.cloud.dataflow.applicationProperties.task.trustCerts': trust_certs})
 
     def add_kafka_application_properties(self, kafka_config):
         logger.debug('configuring kafka binder')

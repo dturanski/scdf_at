@@ -1,27 +1,62 @@
 = Spring Cloud Data Flow Acceptance Tests For Cloud Foundry
 
 [NOTE]
-This is a Python 3 port of the SCDF AT bash scripts.
+This is a Python 3 port of the Cloud Foundry setup for SCDF acceptance tests.
 
 == About
-This project supports Spring Cloud Data Flow acceptence testing on Cloud Foundry environments.
-This may be used to test dataflow as standalone app instances, or as a Dataflow Cloud Foundry service instance (the *tile*)
-This is intended to work with Cloud Foundry SQL and Message Broker services (e.g., mysql, rabbit) or
-connecting to an external Database, Currently Oracle or Postgresql, and an external Kafka message broker.
+This project started as a better way to setup SCDF in a Cloud Foundry environment to support Spring Cloud Data Flow internal acceptance testing.
+The bash scripts served their purpose but started to get crushed under their own weight as we added new configuration requirements.
+
+Now I think it's a generally useful tool for installing SCDF in any test or production environment.
+It was a primary goal of SCDF acceptance testing to test in all target environments.
+For Cloud Foundry, that means testing against different cf service configurations, but also against an external Kafka message brokers and external databases.
+In short, this exposes every significant configuration option you need to install SCDF as standalone app instances
+or using the Spring Cloud Dataflow service for TAS (the *tile*).
+
+[NOTE]
+For this reason, I think the acceptance tests repo should be able to install and run this for setup/clean
+
+[NOTE]
+Windows users: I'm pretty certain this won't work. Linux or Mac only, sorry.
+
+==== Why didn't you write this in Java?
+Fair point. It only occurred to me after I got into this. The original bash implementation uses the CF cli for everything,
+so my immediate reaction was that Java ProcessBuilder is extremely cumbersome compared to a language such as Python -
+my favorite alternative. But, the CF cli could be replaced by https://github.com/cloudfoundry/cf-java-client['cf-java-client'],
+as we do for the https://github.com/spring-cloud/spring-cloud-deployer-cloudfoundry[CloudFoundry deployer].
+If you are into project Reactor or want to learn about it, this would be a great opportunity to use cf-java-client
+in many ways the deployer doesn't.
+
+But the CF interface turned out to be about 20% of this code. The configuration is the main thing, and for that I needed something
+akin to Spring Boot. So it can be done, but I imagine you would have to disable some of boot's auto-config that might
+recognize some of these properties intended only for the CF deployment.
+
+==== SQL Database
+SCDF and Skipper require a relational DB. This can use any Cloud Foundry SQL service broker, or an external database, such as
+postgresql or oracle
+
+==== Message Broker
+This is intended to work with Cloud Foundry rabbit service broker or an external Kafka broker.
+External Rabbit broker has not been tested, since the CF is a great place to run RabbitMQ.
+This would need to be extended to support other message brokers
 
 Learning from previous iterations, this simplifies configuration by requiring everything to be configured with environment variables.
-The framework binds configuration objects to environment variables, grouped by prefix, binding to Spring properties directly where possible.
-The exception to this are the core AT configuration properties which do not use a prefix.
-Examples are `BINDER`, `PLATFORM`, `MAVEN_REPOS` (more details to follow).
+The tool's framework binds configuration objects to environment variables, grouped by prefix, binding to Spring properties directly where possible.
+This extremely simple binding mechanism is inspired by the Spring Framework, but there are so many configuration options,
+it's good to provide only one way to do things.
+
+The exception to the prefix rule are the basic AT configuration properties which do not use a prefix.
+Examples are `BINDER`, `PLATFORM`, `MAVEN_REPOS` (more details to follow). This is subject to change though.
+
 
 == Cloud Foundry Platform Configuration
 
-These configuration properties apply to each platform
+These configuration properties apply to either platform (standalone or tile)
 
 [source, bash]
 #
 # CloudFoundry connect properties.
-# For the tile, these are only required to connecte. They do not apply to the Cloud Foundry deployer.
+# For the tile, these are only required to connect. They do not apply to the Cloud Foundry deployer.
 # For standalone, you can add to these as needed to configure the deployer.
 #
 export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_URL=https://api.sys.somehost.cf-app.com
@@ -35,11 +70,17 @@ export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD=password
 # AT Test properies with opinionated defaults
 #
 #export PLATFORM=tile
-#export SCHEDULER_ENABLED=false
 #export CONFIG_SERVER_ENABLED=false
 #export BINDER=rabbit
+#
+# Poller config for deployment, max 20 min to wait for a service to be created
+#
 #export DEPLOY_WAIT_SEC=20
-#export MAX_RETRIES=30
+#export MAX_RETRIES=60
+#
+# SERVICE_KEY_NAME is used to create/delete service keys
+#
+#export SERVICE_KEY_NAME='scdf-at'
 #export MAVEN_REPOS='{"repo1":"https://repo.spring.io/libs-snapshot"}'
 #
 # External DB configuration (
@@ -103,7 +144,8 @@ The standalone platform uses the following additional configuration properties:
 # Trust certs from the api host, derived from the deployer url by default
 #
 #export TRUST_CERTS=api.sys.somehost.cf-app.com
-#export JBP_JRE_VERSION="1.8. +"
+#Can also tweak other jvm settings, see https://github.com/cloudfoundry/java-buildpack
+#export JBP_JRE_VERSION="{ jre: { version: 1.8.+ }}"
 #export BUILDPACK=java_buildpack_offline
 #
 #  Download server jars (Maven by default)
@@ -194,12 +236,3 @@ It sets up the local environment to run the above commands:
 === Run the tests,
 
 Load `cf_at.properties`, perform any additional setup, and run a maven command.
-
-
-
-
-
-
-
-
-

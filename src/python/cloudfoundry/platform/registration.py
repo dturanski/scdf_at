@@ -43,7 +43,7 @@ def register_apps(cf, config, server_uri, app_import_path='app-imports.propertie
 class AppRegistrations:
     DEFAULT_DATAFLOW_VERSION = '2.10.0-M1'
 
-    def __init__(self, cf, test_config, server_uri=util.server_uri(), app_import_path='app-imports.properties'):
+    def __init__(self, cf, test_config, server_uri, app_import_path='app-imports.properties'):
         self.headers = headers = {'Authorization': cf.oauth_token()}
         self.app_import_path = app_import_path
         self.apps_url = "%s/apps" % server_uri

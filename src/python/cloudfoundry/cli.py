@@ -32,7 +32,7 @@ class CloudFoundry:
 
     @classmethod
     def connect(cls, deployer_config, test_config, shell=Shell()):
-        logger.debug("ConnectionConfig:" + json.dumps(deployer_config))
+        logger.debug("connection config:\n%s" % deployer_config.masked())
         cf = CloudFoundry(deployer_config, test_config, shell)
 
         if not CloudFoundry.initialized:
@@ -99,7 +99,7 @@ class CloudFoundry:
                 key = line[0:line.index(':')].strip()
                 value = line[line.index(':') + 1:].strip()
                 target[key] = value
-        logger.debug("current context:" + str(target))
+        logger.debug("current target:\n%s" % json.dumps(target,indent=4))
         return target
 
     def target(self, org=None, space=None):
@@ -145,9 +145,12 @@ class CloudFoundry:
     def create_service(self, service_config):
         logger.info("creating service " + json.dumps(service_config))
 
-        proc = self.shell.exec("cf create-service %s %s %s %s" %
-                               (service_config.service, service_config.plan, service_config.name,
-                                "-c '%s'" % service_config.config if service_config.config else ""))
+        # Looks like pretty clean code, but having to pass this mess on the command line? WTF
+        config = "-c '%s'" % json.dumps(service_config.config) if service_config.config else ""
+        print(config)
+
+        proc = self.shell.exec("cf create-service %s %s %s %s" % (service_config.service, service_config.plan,
+                                                                  service_config.name,config))
         self.shell.log_stdout(proc)
         if self.shell.dry_run:
             return proc
@@ -198,22 +201,22 @@ class CloudFoundry:
         service_key_json = re.sub("Getting key.+\n", "", msg)
         return json.loads(service_key_json)
 
-    def create_service_key(self, service_name, key_name='scdf-at'):
+    def create_service_key(self, service_name, key_name):
         if not self.service_key(service_name, key_name):
-            logger.info("creating service key % for service %s" % (key_name, service_name))
-            proc = self.shell("cf create-service-key %s %s" % (service_name, key_name))
+            logger.info("creating service key %s for service %s" % (key_name, service_name))
+            proc = self.shell.exec("cf create-service-key %s %s" % (service_name, key_name))
             if proc.returncode:
                 logger.error(self.shell.stdout_to_s(proc))
                 raise RuntimeError("FATAL: Failed to create service key %s %s" % (service_name, key_name))
-            return proc
+            return self.service_key(service_name, key_name)
         else:
             logger.info("service key % %s already exists" % (service_name, key_name))
             return None
 
-    def delete_service_key(self, service_name, key_name='scdf-at'):
+    def delete_service_key(self, service_name, key_name):
         if self.service_key(service_name, key_name):
             logger.info("deleting service key % for service %s" % (key_name, service_name))
-            proc = self.shell("cf create-service-key %s %s" % (service_name, key_name))
+            proc = self.shell.exec("cf delete-service-key -f %s %s" % (service_name, key_name))
             if proc.returncode:
                 logger.error(self.shell.stdout_to_s(proc))
             else:
