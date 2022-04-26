@@ -28,7 +28,7 @@ class KafkaConfig(EnvironmentAware):
 
     @classmethod
     def assert_required_keys(cls, env):
-        EnvironmentAware.assert_required_keys(env, [cls.broker_address_key, cls.username_key, cls.password_key])
+        EnvironmentAware.assert_required_keys(cls, env, [cls.broker_address_key, cls.username_key, cls.password_key])
 
     @classmethod
     def from_env_vars(cls, env=os.environ):

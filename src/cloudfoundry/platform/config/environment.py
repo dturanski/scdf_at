@@ -52,9 +52,9 @@ class EnvironmentAware(JSonEnabled):
         return s
 
     @classmethod
-    def assert_required_keys(cls, env, required_keys):
+    def assert_required_keys(cls, target, env, required_keys):
         for key in required_keys:
             if not env.get(key):
                 raise ValueError(
                     "A required environment variable is missing. The following required keys are bound to %s\n%s" % (
-                        cls.__name__, cls.required_env_names(required_keys)))
+                        target.__name__, cls.required_env_names(required_keys)))

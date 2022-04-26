@@ -36,7 +36,8 @@ class CloudFoundryDeployerConfig(EnvironmentAware):
 
     @classmethod
     def assert_required_keys(cls, env):
-        EnvironmentAware.assert_required_keys(env,
+        EnvironmentAware.assert_required_keys(cls,
+                                              env,
                                               [cls.url_key,
                                                cls.org_key,
                                                cls.space_key,
