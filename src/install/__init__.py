@@ -1,7 +1,13 @@
 import sys, os, logging
 from json import JSONEncoder
 
-sys.path.append(os.path.join(sys.path[0], ".", ".."))
+import os
+import sys
+PROJECT_PATH = os.getcwd()
+SOURCE_PATH = os.path.join(
+    PROJECT_PATH, "src"
+)
+sys.path.append(SOURCE_PATH)
 
 
 def json_patch():

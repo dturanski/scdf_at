@@ -138,7 +138,7 @@ class InstallationContext(EnvironmentAware):
                 DBConfig.assert_required_keys(env)
 
         if not self.config_props.binder == 'rabbit':
-            logger.debug('removing rabbit service for binder %s' % self.installation_context.binder)
+            logger.debug('removing rabbit service for binder %s' % self.config_props.binder)
             self.remove_required_service('rabbit')
 
         if not self.config_props.config_server_enabled:

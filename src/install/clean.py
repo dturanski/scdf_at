@@ -54,7 +54,7 @@ def clean(args):
             enable_debug_logging()
         installation = InstallationContext.from_env_vars()
         cf = CloudFoundry.connect(deployer_config=installation.deployer_config, config_props=installation.config_props)
-        if installation.services_config and not options.apps_only:
+        if not options.apps_only:
             logger.info("deleting current services...")
             services = cf.services()
             for service in services:

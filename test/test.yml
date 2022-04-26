@@ -2,7 +2,7 @@
 ---
 applications:
 - name: dataflow-server
-  host: dataflow-server-446
+  host: dataflow-server-495
   memory: 2G
   disk_quota: 2G
   instances: 1
