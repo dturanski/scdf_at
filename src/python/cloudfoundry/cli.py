@@ -31,9 +31,9 @@ class CloudFoundry:
     initialized = False
 
     @classmethod
-    def connect(cls, deployer_config, test_config, shell=Shell()):
+    def connect(cls, deployer_config, config_props, shell=Shell()):
         logger.debug("connection config:\n%s" % deployer_config.masked())
-        cf = CloudFoundry(deployer_config, test_config, shell)
+        cf = CloudFoundry(deployer_config, config_props, shell)
 
         if not CloudFoundry.initialized:
             logger.debug("logging in to CF - api: %s org: %s space: %s" % (
@@ -51,15 +51,15 @@ class CloudFoundry:
             logger.debug("Already logged in. Call 'cf logout'")
         return cf
 
-    def __init__(self, deployer_config, test_config, shell):
+    def __init__(self, deployer_config, config_props, shell):
         if not deployer_config:
             raise ValueError("'deployer_config' is required")
-        if not test_config:
-            raise ValueError("'test_config' is required")
+        if not config_props:
+            raise ValueError("'config_props' is required")
         if not shell:
             raise ValueError("'shell' is required")
-        self.poller = Poller(test_config.deploy_wait_sec, test_config.max_retries)
-        self.test_config = test_config
+        self.poller = Poller(config_props.deploy_wait_sec, config_props.max_retries)
+        self.config_props = config_props
         self.deployer_config = deployer_config
 
         self.shell = shell
@@ -147,7 +147,6 @@ class CloudFoundry:
 
         # Looks like pretty clean code, but having to pass this mess on the command line? WTF
         config = "-c '%s'" % json.dumps(service_config.config) if service_config.config else ""
-        print(config)
 
         proc = self.shell.exec("cf create-service %s %s %s %s" % (service_config.service, service_config.plan,
                                                                   service_config.name,config))

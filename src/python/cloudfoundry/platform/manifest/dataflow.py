@@ -45,34 +45,34 @@ applications:
 '''
 
 
-def create_manifest(cf_at_config, application_name='dataflow-server', params={}):
-    dataflow_config = cf_at_config.dataflow_config
-    datasource_config = cf_at_config.datasources_config['dataflow']
-    test_config = cf_at_config.test_config
-    jar_path = test_config.dataflow_jar_path
-    deployer_config = cf_at_config.deployer_config
-    app_deployment = {'services': test_config.task_services}
-    if test_config.scheduler_enabled:
-        app_deployment['scheduler-url'] = cf_at_config.dataflow_config.scheduler_url
-    server_services = [cf_at_config.services_config.get('sql').name] if cf_at_config.services_config.get('sql') else []
+def create_manifest(installation, application_name='dataflow-server', params={}):
+    dataflow_config = installation.dataflow_config
+    datasource_config = installation.datasources_config['dataflow']
+    config_props = installation.config_props
+    jar_path = config_props.dataflow_jar_path
+    deployer_config = installation.deployer_config
+    app_deployment = {'services': config_props.task_services}
+    if dataflow_config.schedules_enabled:
+        app_deployment['scheduler-url'] = installation.deployer_config.scheduler_url
+    server_services = [installation.services_config.get('sql').name] if installation.services_config.get('sql') else []
     excluded_deployer_props = deployer_config.required_keys
     excluded_deployer_props.extend([deployer_config.skip_ssl_validation_key])
     template = Template(manifest_template)
     logger.info('creating manifest for application %s using jar path %s' % (application_name, jar_path))
-    saj = format_saj(spring_application_json(cf_at_config, app_deployment,
+    saj = format_saj(spring_application_json(installation, app_deployment,
                                              'spring.cloud.dataflow.task.platform.cloudfoundry.accounts'))
     app_config = dataflow_config.as_env()
     print('format env' + format_env(app_config))
     return template.substitute({
         'application_name': application_name,
         'host_name': "%s-%d" % (application_name, random.randint(0, 1000)),
-        'buildpack': cf_at_config.test_config.buildpack,
+        'buildpack': installation.config_props.buildpack,
         'path': jar_path,
         'skipper_uri': params.get('skipper_uri'),
-        'jbp_jre_version': cf_at_config.test_config.jbp_jre_version,
+        'jbp_jre_version': installation.config_props.jbp_jre_version,
         'datasource_config': format_env(datasource_config.as_env()),
         'app_config': format_env(app_config),
         'top_level_deployer_properties': format_env(
-            cf_at_config.deployer_config.as_env(excluded=excluded_deployer_props)),
+            installation.deployer_config.as_env(excluded=excluded_deployer_props)),
         'spring_application_json': saj,
         'services': "services:\n" + format_yaml_list(server_services) if server_services else ''})

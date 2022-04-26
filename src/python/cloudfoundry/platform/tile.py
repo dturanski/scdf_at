@@ -36,29 +36,29 @@ def client_credentials_from_service_key(cf, service_name, key_name):
     }
 
 
-def setup(cf, config):
-    setup_certs(config.test_config.cert_host)
-    service_name = config.services_config['dataflow'].name
-    key_name = config.test_config.service_key_name
+def setup(cf, installation):
+    setup_certs(installation.config_props.cert_host)
+    service_name = installation.services_config['dataflow'].name
+    key_name = installation.config_props.service_key_name
     return client_credentials_from_service_key(cf, service_name, key_name)
 
 
-def configure_dataflow_service(config):
+def configure_dataflow_service(installation):
     logger.info("configuring dataflow tile")
     dataflow_tile_configuration = {'maven-cache': True}
     #
     # TODO: It does appear that you can pass any native properties this way, but this is undocumented AFAIK
     #
-    dataflow_tile_configuration.update(config.dataflow_config.as_env())
-    if config.dataflow_config.schedules_enabled:
-        scheduler = config.services_config['scheduler']
+    dataflow_tile_configuration.update(installation.dataflow_config.as_env())
+    if installation.dataflow_config.schedules_enabled:
+        scheduler = installation.services_config['scheduler']
         dataflow_tile_configuration.update({'scheduler': {'name': scheduler.name, 'plan': scheduler.plan}})
-    if config.db_config:
-        if config.dataflow_config.streams_enabled:
-            print(config.datasources_config.get('skipper'))
-            dataflow_tile_configuration['skipper-relational'] = user_provided(config.datasources_config.get('skipper'))
-        if config.dataflow_config.tasks_enabled:
-            dataflow_tile_configuration['relational-data-service'] = user_provided(config.datasources_config.get('dataflow'))
+    if installation.db_config:
+        if installation.dataflow_config.streams_enabled:
+            print(installation.datasources_config.get('skipper'))
+            dataflow_tile_configuration['skipper-relational'] = user_provided(installation.datasources_config.get('skipper'))
+        if installation.dataflow_config.tasks_enabled:
+            dataflow_tile_configuration['relational-data-service'] = user_provided(installation.datasources_config.get('dataflow'))
     logger.debug("dataflow_tile_configuration:\n%s" % masked(dataflow_tile_configuration))
     return dataflow_tile_configuration
 
@@ -101,5 +101,5 @@ def user_provided(datasource_config):
             }
 
 
-def clean(cf, config):
+def clean(cf, installation):
     pass

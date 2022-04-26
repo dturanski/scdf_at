@@ -22,17 +22,16 @@ logger = logging.getLogger(__name__)
 __author__ = 'David Turanski'
 
 import requests
-from scdf_at import util
 
 
-def register_apps(cf, config, server_uri, app_import_path='app-imports.properties'):
-    app_registrations = AppRegistrations(cf, config.test_config, server_uri=server_uri, app_import_path=app_import_path)
-    if config.dataflow_config.streams_enabled:
+def register_apps(cf, installation, server_uri, app_import_path='app-imports.properties'):
+    app_registrations = AppRegistrations(cf, installation.config_props, server_uri=server_uri, app_import_path=app_import_path)
+    if installation.dataflow_config.streams_enabled:
         app_registrations.register_stream_apps()
     else:
         logger.info("skipping stream apps, since streams_enabled if False")
 
-    if config.dataflow_config.tasks_enabled:
+    if installation.dataflow_config.tasks_enabled:
         app_registrations.register_task_apps()
     else:
         logger.info("skipping task apps, since tasks_enabled if False")
@@ -43,14 +42,14 @@ def register_apps(cf, config, server_uri, app_import_path='app-imports.propertie
 class AppRegistrations:
     DEFAULT_DATAFLOW_VERSION = '2.10.0-M1'
 
-    def __init__(self, cf, test_config, server_uri, app_import_path='app-imports.properties'):
+    def __init__(self, cf, config_props, server_uri, app_import_path='app-imports.properties'):
         self.headers = headers = {'Authorization': cf.oauth_token()}
         self.app_import_path = app_import_path
         self.apps_url = "%s/apps" % server_uri
-        self.task_apps_uri = test_config.task_apps_uri
-        self.stream_apps_uri = test_config.stream_apps_uri
-        self.binder = test_config.binder
-        self.dataflow_version = test_config.dataflow_version
+        self.task_apps_uri = config_props.task_apps_uri
+        self.stream_apps_uri = config_props.stream_apps_uri
+        self.binder = config_props.binder
+        self.dataflow_version = config_props.dataflow_version
         if not self.dataflow_version:
             logger.warning(
                 "'dataflow_version' is not defined in test configuration - using default: %s" % self.DEFAULT_DATAFLOW_VERSION)

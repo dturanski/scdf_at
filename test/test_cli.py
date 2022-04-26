@@ -19,9 +19,9 @@ import unittest
 from cloudfoundry.cli import CloudFoundry
 from cloudfoundry.platform.config.dataflow import DataflowConfig
 from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
-from cloudfoundry.platform.config.at_config import AcceptanceTestsConfig
+from cloudfoundry.platform.config.configuration import ConfigurationProperties
 from cloudfoundry.platform.config.service import ServiceConfig
-from cloudfoundry.platform.config.at import CloudFoundryPlatformConfig
+from cloudfoundry.platform.config.installation import InstallationContext
 
 from scdf_at.shell import Shell
 
@@ -45,7 +45,7 @@ Getting key %s for service instance %s as admin...
 
 class TestCommands(unittest.TestCase):
     def test_service_key(self):
-        cf = CloudFoundry(self.config().deployer_config, self.config().test_config, MockShell())
+        cf = CloudFoundry(self.installation().deployer_config, self.installation().config_props, MockShell())
         service_key = cf.service_key('ci-scheduler', 'scdf-at')
         self.assertEqual('https://scheduler.sys.avenal.cf-app.com', service_key.get( 'api_endpoint'))
 
@@ -87,22 +87,22 @@ class TestCommands(unittest.TestCase):
         self.assertEqual(['cf', 'create-service', 'p.rabbitmq', 'single-node', 'rabbit'], p.args)
 
     def cloudfoundry(self):
-        config = self.config()
-        return CloudFoundry(deployer_config=config.deployer_config, test_config=config.test_config,
+        installation = self.installation()
+        return CloudFoundry(deployer_config=installation.deployer_config, config_props=installation.config_props,
                             shell=Shell(dry_run=True))
 
-    def config(self):
+    def installation(self):
         deployer_config = CloudFoundryDeployerConfig(api_endpoint="https://api.mycf.org",
                                                      org="org",
                                                      space="space",
                                                      app_domain="apps.mycf.org",
                                                      username="user",
                                                      password="password")
-        test_config = AcceptanceTestsConfig()
-        test_config.dataflow_version = '2.1.0-SNAPSHOT'
-        test_config.skipper_version = '2.9.0-SNAPSHOT'
-        test_config.platform = 'cloudfoundry'
-        return CloudFoundryPlatformConfig(deployer_config=deployer_config,
-                                          test_config=test_config,
-                                          services_config={'sql': ServiceConfig(name='foo', plan='bar', service='service')},
-                                          dataflow_config=DataflowConfig())
+        config_props = ConfigurationProperties()
+        config_props.dataflow_version = '2.1.0-SNAPSHOT'
+        config_props.skipper_version = '2.9.0-SNAPSHOT'
+        config_props.platform = 'cloudfoundry'
+        return InstallationContext(deployer_config=deployer_config,
+                                   config_props=config_props,
+                                   services_config={'sql': ServiceConfig(name='foo', plan='bar', service='service')},
+                                   dataflow_config=DataflowConfig())

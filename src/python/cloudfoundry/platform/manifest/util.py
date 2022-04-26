@@ -20,19 +20,19 @@ import re
 logger = logging.getLogger(__name__)
 
 
-def spring_application_json(cf_config, app_deployment, platform_accounts_key):
+def spring_application_json(installation, app_deployment, platform_accounts_key):
     logger.debug("generating spring_application_json for platform_accounts_key %s" % platform_accounts_key)
     logger.debug("deployment config %s" % str(app_deployment))
     saj = {'maven': {
-        "remoteRepositories": {key: {'url': val} for (key, val) in cf_config.test_config.maven_repos.items()}
+        "remoteRepositories": {key: {'url': val} for (key, val) in installation.config_props.maven_repos.items()}
     }, platform_accounts_key: {
-        "default": {'connection': cf_config.deployer_config.connection(), 'deployment': app_deployment}}}
+        "default": {'connection': installation.deployer_config.connection(), 'deployment': app_deployment}}}
     return saj
 
 
-def format_saj(spring_application_json):
+def format_saj(application_json):
     saj = ''
-    for k, v in spring_application_json.items():
+    for k, v in application_json.items():
         for line in json.dumps({k: v}, indent=1).split('\n'):
             match = re.match('^(\s*)(.*)', line)
             if match.group(1):

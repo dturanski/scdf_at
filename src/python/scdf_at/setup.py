@@ -20,7 +20,7 @@ import json
 from cloudfoundry.cli import CloudFoundry
 from optparse import OptionParser
 from cloudfoundry.platform import standalone, tile
-from cloudfoundry.platform.config.at import CloudFoundryPlatformConfig
+from cloudfoundry.platform.config.installation import InstallationContext
 from cloudfoundry.platform.config.service import ServiceConfig
 from scdf_at import enable_debug_logging
 from scdf_at.db import init_db
@@ -46,43 +46,43 @@ def setup(args):
     parser.usage = "%prog setup options"
 
     try:
-        config = CloudFoundryPlatformConfig.from_env_vars()
-        logger.debug("Setup using config:\n" + json.dumps(config.masked(), indent=4))
-        add_options_for_platform(parser, config.test_config.platform)
+        installation = InstallationContext.from_env_vars()
+        logger.debug("Setup using config:\n" + json.dumps(installation.masked(), indent=4))
+        add_options_for_platform(parser, installation.config_props.platform)
         options, arguments = parser.parse_args(args)
         if options.debug:
             enable_debug_logging()
 
-        cf = CloudFoundry.connect(deployer_config=config.deployer_config,
-                                  test_config=config.test_config)
-        if config.db_config:
-            config.datasources_config = init_db(config)
+        cf = CloudFoundry.connect(deployer_config=installation.deployer_config,
+                                  config_props=installation.config_props)
+        if installation.db_config:
+            installation.datasources_config = init_db(installation)
 
-        if config.services_config.get('scheduler'):
+        if installation.services_config.get('scheduler'):
             ensure_required_services(cf, dict(
-                filter(lambda entry: entry[0] == 'scheduler', config.services_config.items())))
-            config.remove_required_service('scheduler')
+                filter(lambda entry: entry[0] == 'scheduler', installation.services_config.items())))
+            installation.remove_required_service('scheduler')
             logger.debug("getting scheduler_url from service_key")
-            service_name = config.services_config['scheduler'].name
-            key_name = config.test_config.service_key_name
+            service_name = installation.services_config['scheduler'].name
+            key_name = installation.config_props.service_key_name
             service_key = cf.create_service_key(service_name, key_name)
-            config.deployer_config.scheduler_url = service_key['url']
+            installation.deployer_config.scheduler_url = service_key['url']
             cf.delete_service_key(service_key, key_name)
 
-        if config.test_config.platform == "tile":
-            config.services_config['dataflow'].config = tile.configure_dataflow_service(config)
+        if installation.config_props.platform == "tile":
+            installation.services_config['dataflow'].config = tile.configure_dataflow_service(installation)
 
-        ensure_required_services(cf, config.services_config)
+        ensure_required_services(cf, installation.services_config)
 
-        if config.test_config.platform == "tile":
-            runtime_properties = tile.setup(cf, config)
-        elif config.test_config.platform == "cloudfoundry":
-            runtime_properties = standalone.setup(cf, config, options.do_not_download)
+        if installation.config_props.platform == "tile":
+            runtime_properties = tile.setup(cf, installation)
+        elif installation.config_props.platform == "cloudfoundry":
+            runtime_properties = standalone.setup(cf, installation, options.do_not_download)
         else:
-            logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % config.test_config.platform)
+            logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % installation.config_props.platform)
         dataflow_uri = runtime_properties['SERVER_URI']
 
-        register_apps(cf, config, dataflow_uri)
+        register_apps(cf, installation, dataflow_uri)
         return runtime_properties
     except SystemExit:
         parser.print_help()
@@ -130,14 +130,14 @@ def ensure_required_services(cf, services_config):
                 raise RuntimeError("FATAL: %s " % cf.service(s.name))
 
         for s in required_services['create']:
-            logger.info("creating service:" + str(s))
+            logger.debug("creating service:\n%s" + masked(s))
             cf.create_service(s)
 
 
 if __name__ == '__main__':
     shared_properties = setup(sys.argv)
     # TODO not sure a better way to make this available to calling shell script
-    with open('cf_at.properties', 'w') as output:
+    with open('cf_scdf.properties', 'w') as output:
         for k, v in shared_properties.items():
             output.write('%s=%s\n' % (k, v))
     output.close()

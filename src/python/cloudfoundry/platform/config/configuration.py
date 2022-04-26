@@ -22,20 +22,20 @@ from cloudfoundry.platform.config.environment import EnvironmentAware
 logger = logging.getLogger(__name__)
 
 
-class AcceptanceTestsConfig(EnvironmentAware):
+class ConfigurationProperties(EnvironmentAware):
     """
     """
 
     @classmethod
     def from_env_vars(cls, env=os.environ):
-        kwargs = cls.set_if_present(env, AcceptanceTestsConfig().__dict__, converters={
+        kwargs = cls.set_if_present(env, ConfigurationProperties().__dict__, converters={
             'deploy_wait_sec': lambda x: int(x),
             'max_retries': lambda x: int(x),
             'maven_repos': lambda x: json.loads(x),
             'task_services': lambda x: x.split(','),
             'stream_services': lambda x: x.split(',')
         })
-        config = AcceptanceTestsConfig(**kwargs)
+        config = ConfigurationProperties(**kwargs)
         return config
 
     def __init__(self,

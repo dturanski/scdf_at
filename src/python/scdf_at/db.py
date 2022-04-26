@@ -111,13 +111,13 @@ def init_oracle_db(db_config, dbname):
             conn.close()
 
 
-def init_db(config):
-    db = config.db_config
+def init_db(installation):
+    db = installation.db_config
     if not (db and db.provider):
         logging.info("'database provider' is not defined. Skipping external DB initialization.")
         return
 
-    binder = config.test_config.binder
+    binder = installation.config_props.binder
     if db.provider in ['postgresql', 'postgres']:
         init_postgres_db(db, db_name('skipper', db,binder))
         init_postgres_db(db, db_name('dataflow', db, binder))

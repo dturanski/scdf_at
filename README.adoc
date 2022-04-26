@@ -1,49 +1,48 @@
-= Spring Cloud Data Flow Acceptance Tests For Cloud Foundry
+= Spring Cloud Data Flow Installation For Cloud Foundry
 
 [NOTE]
 This is a Python 3 port of the Cloud Foundry setup from https://github.com/spring-cloud/spring-cloud-dataflow-acceptance-tests[SCDF acceptance tests].
 
 == About
-This project started as an better way setup SCDF in a Cloud Foundry environment to support Spring Cloud Data Flow internal acceptance testing.
-The bash scripts served their purpose but started to get crushed under their own weight as we added new configuration requirements.
+This project started as an better way setup SCDF in a Cloud Foundry environment to support internal SCDF acceptance testing.
 
-Now I think it's a generally useful tool for installing SCDF in any test or production environment.
+Now I think this tool a generally useful for installing SCDF in any test or production Cloud Foundry environment.
 It was a primary goal of SCDF acceptance testing to test in all target environments.
 For Cloud Foundry, that means testing against different cf service configurations, but also against an external Kafka message brokers and external databases.
-In short, this exposes every significant configuration option you need to install SCDF as standalone app instances
+In short, it exposes every significant configuration option you need to install SCDF as standalone app instances
 or using the Spring Cloud Dataflow service for TAS (the *tile*).
-
-[NOTE]
-For this reason, I think the acceptance tests repo should be able to install and run this for setup/clean
 
 [NOTE]
 Windows users: I'm pretty certain this won't work. Linux or Mac only, sorry.
 
 ==== Why didn't you write this in Java?
-Fair point. It only occurred to me after I got into this. The original bash implementation uses the CF cli for everything,
+It's a fair point. It only occurred to me after I started. The original bash implementation uses the CF cli for everything,
 so my immediate reaction was that Java ProcessBuilder is extremely cumbersome compared to a language such as Python -
 my favorite alternative. But, the CF cli could be replaced by https://github.com/cloudfoundry/cf-java-client['cf-java-client'],
 as we do for the https://github.com/spring-cloud/spring-cloud-deployer-cloudfoundry[CloudFoundry deployer].
 If you are into project Reactor or want to learn about it, this would be a great opportunity to use cf-java-client
 in many ways the deployer doesn't.
 
-But the CF interface turned out to be about 20% of this code. The configuration is the main thing, and for that I needed something
-akin to Spring Boot, or at least Spring Framework Environment. So it can be done, but I imagine you would have to disable some of boot's auto-config that might
-recognize some of these properties intended only for the CF deployment.
+The CF interface turned out to be about 20% of this code. The configuration is the main thing. And for that I needed something
+akin to Spring Boot, or at least Spring Framework. So it can be done, but I imagine one would need to disable some of boot's auto-config that might
+recognize some of these properties which are intended only for the SCDF deployment.
 
 ==== SQL Database
-SCDF and Skipper require a relational DB. This can use any Cloud Foundry SQL service broker, or an external database, such as
-postgresql or oracle
+SCDF and Skipper require a relational DB.
+The installation can use any Cloud Foundry SQL service broker, or an external database, such as postgresql or oracle.
 
 ==== Message Broker
-This is intended to work with Cloud Foundry rabbit service broker or an external Kafka broker.
-External Rabbit broker has not been tested, since the CF is a great place to run RabbitMQ.
+This installation  works with the Cloud Foundry rabbit service broker or an external Kafka broker.
+An external RabbitMQ broker is not supported, since the CF is a great place to run RabbitMQ.
 This would need to be extended to support other message brokers
 
-Learning from previous iterations, this simplifies configuration by requiring everything to be configured with environment variables.
-The tool's framework binds configuration objects to environment variables, grouped by prefix, binding to Spring properties directly where possible.
-This extremely simple binding mechanism is inspired by the Spring Framework, but there are so many configuration options,
-it's good to provide only one way to do things.
+==== Configuration
+
+Everything is configured via environment variables, with sane default settings.
+The installation configuration framework binds configuration objects to environment variables.
+Configuration classes are associated with a prefix, and bind directly to Spring properties where appropriate.
+This extremely simple binding mechanism is inspired by the Spring Framework, but much less powerful.
+There are so many configuration options, that it's probably a good idea to provide only one way to do things.
 
 The exception to the prefix rule are the basic AT configuration properties which do not use a prefix.
 Examples are `BINDER`, `PLATFORM`, `MAVEN_REPOS` (more details to follow). This is subject to change though.
@@ -217,7 +216,7 @@ Currently, if `clean` was not run first, and the server apps are deployed, setup
 which map to a different route. That's a nice CF feature, but will cause the setup to break currently.
 So please run clean first, or delete the apps using the cloudfoundry cli.
 Setup writes the values `SERVER_URI` and any other required values, e.g. `SPRING_CLOUD_DATAFLOW_SCHEDULER_URL` that
-the tests need to `cf_at.properties`, which is loaded by the test process.
+the tests need to `cf_scdf.properties`, which is loaded by the test process.
 Files are used for inter-process communication, since any OS environment variable set in a called process does not apply to the calling process.
 
 [source, bash]
@@ -225,7 +224,7 @@ python3 -m scdf_at.setup
 
 use `--help` to list the available command line options
 
-link:cf-at.sh[cf-at.sh] is the common script that all SCDF Acceptance tests running in CI will run.
+link:cf-scdf-setup.sh[cf-at.sh] is the common script that all SCDF Acceptance tests running in CI will run.
 It sets up the local environment to run the above commands:
 
 * installs any dependent Python libs
@@ -235,4 +234,4 @@ It sets up the local environment to run the above commands:
 
 === Run the tests,
 
-Load `cf_at.properties`, perform any additional setup, and run a maven command.
+Load `cf_scdf.properties`, perform any additional setup, and run a maven command.

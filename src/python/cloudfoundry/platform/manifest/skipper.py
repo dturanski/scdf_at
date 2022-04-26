@@ -44,32 +44,32 @@ applications:
 '''
 
 
-def create_manifest(cf_at_config, application_name='skipper-server', params={}):
-    datasource_config = cf_at_config.datasources_config['skipper']
-    test_config = cf_at_config.test_config
-    jar_path = test_config.skipper_jar_path
-    server_services = [cf_at_config.services_config.get('sql').name] if cf_at_config.services_config.get('sql') else []
-    app_deployment = {'services': test_config.stream_services,
+def create_manifest(installation, application_name='skipper-server', params={}):
+    datasource_config = installation.datasources_config['skipper']
+    config_props = installation.config_props
+    jar_path = config_props.skipper_jar_path
+    server_services = [installation.services_config.get('sql').name] if installation.services_config.get('sql') else []
+    app_deployment = {'services': config_props.stream_services,
                       'deleteRoutes': False,
                       'enableRandomAppNamePrefix': False,
                       'memory': 2048
                       }
-    deployer_config = cf_at_config.deployer_config
+    deployer_config = installation.deployer_config
     excluded_deployer_props = deployer_config.required_keys
     excluded_deployer_props.extend([deployer_config.skip_ssl_validation_key, deployer_config.scheduler_url_key])
-    app_config = cf_at_config.skipper_config.as_env()
-    saj = format_saj(spring_application_json(cf_at_config, app_deployment,
+    app_config = installation.skipper_config.as_env()
+    saj = format_saj(spring_application_json(installation, app_deployment,
                                              'spring.cloud.skipper.server.platform.cloudfoundry.accounts'))
     template = Template(manifest_template)
     return template.substitute({
         'application_name': application_name,
         'host_name': "%s-%d" % (application_name, random.randint(0, 1000)),
-        'buildpack': cf_at_config.test_config.buildpack,
+        'buildpack': installation.config_props.buildpack,
         'path': jar_path,
         'app_config': format_env(app_config),
-        'jbp_jre_version': cf_at_config.test_config.jbp_jre_version,
+        'jbp_jre_version': installation.config_props.jbp_jre_version,
         'datasource_config': format_env(datasource_config.as_env()),
         'top_level_deployer_properties': format_env(
-            cf_at_config.deployer_config.as_env(excluded=excluded_deployer_props)),
+            installation.deployer_config.as_env(excluded=excluded_deployer_props)),
         'spring_application_json': saj,
         'services': "services:\n" + format_yaml_list(server_services) if server_services else ''})

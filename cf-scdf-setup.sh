@@ -62,6 +62,9 @@ elif [[ "$os" == "Darwin" ]]; then
 fi
 export PYTHONPATH=./src/python:$PYTHONPATH
 python3 -m scdf_at.clean
+if [[ $? > 0 ]]; then
+  exit 1
+fi
 # TODO: Get the return value for skipper and dataflow url
 
 python3 -m scdf_at.setup $ARGS

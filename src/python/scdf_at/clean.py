@@ -20,7 +20,7 @@ import sys
 from cloudfoundry.cli import CloudFoundry
 from optparse import OptionParser
 from cloudfoundry.platform import standalone, tile
-from cloudfoundry.platform.config.at import CloudFoundryPlatformConfig
+from cloudfoundry.platform.config.installation import InstallationContext
 from cloudfoundry.platform.config.dataflow import DataflowConfig
 from cloudfoundry.platform.config.db import DatasourceConfig
 from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
@@ -34,8 +34,8 @@ def cf_config_from_env():
     db_config = DatasourceConfig.from_spring_env_vars()
     dataflow_config = DataflowConfig.from_env_vars()
 
-    return CloudFoundryPlatformConfig(deployer_config=deployer_config, db_config=db_config,
-                                      dataflow_config=dataflow_config)
+    return InstallationContext(deployer_config=deployer_config, db_config=db_config,
+                               dataflow_config=dataflow_config)
 
 
 def clean(args):
@@ -52,9 +52,9 @@ def clean(args):
         options, arguments = parser.parse_args(args)
         if options.debug:
             enable_debug_logging()
-        config = CloudFoundryPlatformConfig.from_env_vars()
-        cf = CloudFoundry.connect(deployer_config=config.deployer_config, test_config=config.test_config)
-        if config.services_config and not options.apps_only:
+        installation = InstallationContext.from_env_vars()
+        cf = CloudFoundry.connect(deployer_config=installation.deployer_config, config_props=installation.config_props)
+        if installation.services_config and not options.apps_only:
             logger.info("deleting current services...")
             services = cf.services()
             for service in services:
@@ -63,12 +63,12 @@ def clean(args):
             logger.info("'apps-only' option is set, keeping existing current services")
         logger.info("cleaning apps")
         cf.delete_apps()
-        if config.test_config.platform == "tile":
-            return tile.clean(cf, config)
-        elif config.test_config.platform == "cloudfoundry":
-            return standalone.clean(cf, config)
+        if installation.config_props.platform == "tile":
+            return tile.clean(cf, installation)
+        elif installation.config_props.platform == "cloudfoundry":
+            return standalone.clean(cf, installation)
         else:
-            logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % config.test_config.platform)
+            logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % installation.config_props.platform)
 
     except SystemExit:
         parser.print_help()

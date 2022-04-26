@@ -16,16 +16,20 @@ __author__ = 'David Turanski'
 import unittest
 import scdf_at
 from cloudfoundry.platform.config.db import DBConfig
-from cloudfoundry.platform.config.at_config import AcceptanceTestsConfig
+from cloudfoundry.platform.config.configuration import ConfigurationProperties
 from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
 from cloudfoundry.platform.config.service import CloudFoundryServicesConfig, ServiceConfig
 from cloudfoundry.platform.config.kafka import KafkaConfig
-from cloudfoundry.platform.config.at import CloudFoundryPlatformConfig
+from cloudfoundry.platform.config.installation import InstallationContext
+import logging
+import scdf_at
 
 scdf_at.enable_debug_logging()
 
+logger = logging.getLogger(__name__)
 
 class TestConfigProperties(unittest.TestCase):
+
 
     def test_services_config_default(self):
         env = {}
@@ -38,16 +42,16 @@ class TestConfigProperties(unittest.TestCase):
 
     def test_cf_at_config_standalone(self):
         with self.assertRaises(ValueError):
-            CloudFoundryPlatformConfig.from_env_vars({'PLATFORM': 'cloudfoundry'})
+            InstallationContext.from_env_vars({'PLATFORM': 'cloudfoundry'})
         with self.assertRaises(ValueError):
-            CloudFoundryPlatformConfig.from_env_vars(merged_env([deployer_env(), {'PLATFORM': 'cloudfoundry'}]))
+            InstallationContext.from_env_vars(merged_env([deployer_env(), {'PLATFORM': 'cloudfoundry'}]))
         with self.assertRaises(ValueError):
-            CloudFoundryPlatformConfig.from_env_vars(standalone_test_env())
+            InstallationContext.from_env_vars(standalone_test_env())
 
-        CloudFoundryPlatformConfig.from_env_vars(merged_env([deployer_env(), standalone_test_env()]))
+        InstallationContext.from_env_vars(merged_env([deployer_env(), standalone_test_env()]))
 
     def test_env_present_test_config(self):
-        test_config = AcceptanceTestsConfig.from_env_vars(env={'DATAFLOW_VERSION': '2.10.0-SNAPSHOT',
+        test_config = ConfigurationProperties.from_env_vars(env={'DATAFLOW_VERSION': '2.10.0-SNAPSHOT',
                                                                'SKIPPER_VERSION': '2.9.0-SNAPSHOT',
                                                                'DEPLOY_WAIT_SEC': '60',
                                                                'MAX_RETRIES': '10'})
@@ -66,7 +70,7 @@ class TestConfigProperties(unittest.TestCase):
     def test_kafka_settings(self):
         env = standalone_test_env().copy()
         env.update({'BINDER': 'kafka'})
-        test_config = AcceptanceTestsConfig.from_env_vars(env)
+        test_config = ConfigurationProperties.from_env_vars(env)
         self.assertEqual("https://dataflow.spring.io/kafka-maven-latest", test_config.stream_apps_uri)
 
 
@@ -92,8 +96,8 @@ def standalone_test_env():
             'PLATFORM': 'cloudfoundry'}
 
 
-def standdalone_test_config():
-    return AcceptanceTestsConfig.from_env_vars(standalone_test_env())
+def standalone_test_config():
+    return ConfigurationProperties.from_env_vars(standalone_test_env())
 
 
 def merged_env(envs):

@@ -40,28 +40,28 @@ from scdf_at.util import Poller, wait_for_200
 logger = logging.getLogger(__name__)
 
 
-def setup(cf, config, do_not_download, shell=Shell()):
+def setup(cf, installation, do_not_download, shell=Shell()):
     """
     :param cf:
-    :param config:
+    :param installation:
     :param do_not_download:
     :param shell:
     :return:
     """
-    poller = Poller(config.test_config.deploy_wait_sec, config.test_config.max_retries)
+    poller = Poller(installation.config_props.deploy_wait_sec, installation.config_props.max_retries)
 
     if do_not_download:
         logger.info("skipping download server of jars")
     else:
         logger.info("downloading jars")
-        download_server_jars(config.test_config, shell)
+        download_server_jars(installation.config_props, shell)
 
     skipper_uri = None
-    if config.dataflow_config.streams_enabled:
+    if installation.dataflow_config.streams_enabled:
         logger.debug("deploying skipper server")
         deploy(cf=cf, manifest_path='skipper_manifest.yml',
                create_manifest=skipper_manifest.create_manifest, application_name='skipper-server',
-               cf_config=config, params={})
+               installation=installation, params={})
         skipper_app = cf.app('skipper-server')
         # TODO: Try https
         skipper_uri = 'http://%s/api' % skipper_app.route
@@ -72,7 +72,7 @@ def setup(cf, config, do_not_download, shell=Shell()):
     logger.debug("getting dataflow server url")
     logger.debug("waiting for dataflow server to start")
     deploy(cf=cf, manifest_path='dataflow_manifest.yml', application_name='dataflow-server',
-           create_manifest=dataflow_manifest.create_manifest, cf_config=config,
+           create_manifest=dataflow_manifest.create_manifest, installation=installation,
            params={'skipper_uri': skipper_uri})
 
     dataflow_app = cf.app('dataflow-server')
@@ -86,10 +86,10 @@ def clean(cf, config):
     pass
 
 
-def deploy(cf, application_name, manifest_path, create_manifest, cf_config, params={}):
+def deploy(cf, application_name, manifest_path, create_manifest, installation, params={}):
     manifest = open(manifest_path, 'w')
     try:
-        mf = create_manifest(cf_config, application_name=application_name, params=params)
+        mf = create_manifest(installation, application_name=application_name, params=params)
         manifest.write(mf)
         manifest.close()
         cf.push('-f ' + manifest_path)
@@ -97,14 +97,14 @@ def deploy(cf, application_name, manifest_path, create_manifest, cf_config, para
         manifest.close()
 
 
-def download_server_jars(test_config, shell):
+def download_server_jars(config_props, shell):
     skipper_url = 'https://repo.spring.io/libs-snapshot/org/springframework/cloud/spring-cloud-skipper-server/%s/spring-cloud-skipper-server-%s.jar' \
-                  % (test_config.skipper_version, test_config.skipper_version)
-    download_maven_jar(skipper_url, test_config.skipper_jar_path, shell)
+                  % (config_props.skipper_version, config_props.skipper_version)
+    download_maven_jar(skipper_url, config_props.skipper_jar_path, shell)
 
     dataflow_url = 'https://repo.spring.io/libs-snapshot/org/springframework/cloud/spring-cloud-dataflow-server/%s/spring-cloud-dataflow-server-%s.jar' \
-                   % (test_config.dataflow_version, test_config.dataflow_version)
-    download_maven_jar(dataflow_url, test_config.dataflow_jar_path, shell)
+                   % (config_props.dataflow_version, config_props.dataflow_version)
+    download_maven_jar(dataflow_url, config_props.dataflow_jar_path, shell)
 
 
 def download_maven_jar(url, destination, shell):

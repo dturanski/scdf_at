@@ -15,9 +15,11 @@ __author__ = 'David Turanski'
 
 import logging
 import time
+import urllib
+
 import requests
 import json
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 logger = logging.getLogger(__name__)
 
@@ -57,35 +59,45 @@ def wait_for_200(poller, url):
 
 
 def masked(obj):
-    return json.dumps(obj, indent=4)
+    return json.dumps(__masked__(obj), indent=4)
 
 
-def __masked___(obj):
-    if hasattr(obj, '__dict__'):
-        the_dict = obj.__dict__
-    elif type(obj) is dict:
-        the_dict = obj
-    elif type(obj) is str:
-        if not urlparse(obj).scheme:
-            return obj
-        return obj
+def __mask_url__(parts):
+    masked_query = ""
+    if parts.query:
+        items = parts.query.split('&')
+        i = 0
+        for item in items:
+            k, v = item.split('=')
+            masked_query = masked_query + "%s=%s" % (k, mask(k, v))
+            i = i + 1
+            if i < len(items):
+                masked_query = masked_query + '&'
 
-    values = the_dict.copy()
-    for k, v in values.items():
-        if type(v) is dict:
-            values[k] = __masked___(v)
-        else:
-            values[k] = mask(k, v)
-    return values
+    new_parts = (parts.scheme, parts.netloc, parts.path, parts.params, masked_query, parts.fragment)
+    return urlunparse(new_parts)
+
+
+def __masked__(obj):
+    if type(obj) is str:
+        parts = urlparse(obj)
+        return __mask_url__(parts) if parts.scheme else obj
+    if hasattr(obj, '__dict__') or type(obj) == dict:
+        the_dict = obj.__dict__ if hasattr(obj, '__dict__') else obj
+        entries = the_dict.copy()
+        for k, v in entries.items():
+            if hasattr(v, '__dict__') or type(v) == dict:
+                entries[k] = __masked__(v)
+            else:
+                entries[k] = mask(k, __masked__(v))
+        return entries
+    return obj
 
 
 def mask(k, v):
-    secret_words = ['password', 'secret', 'username', 'credentials']
+
+    secret_words = ['password', 'secret', 'username', 'user', 'credentials']
     for secret in secret_words:
         if secret in k.lower():
-            return "********" if v else None
-
-    for secret in secret_words:
-        if type(v) is str and secret in v.lower():
-            return "********"
+            return "*"*8 if v else None
     return v
