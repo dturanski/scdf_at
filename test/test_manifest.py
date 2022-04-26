@@ -15,14 +15,15 @@ __author__ = 'David Turanski'
 
 import json
 import logging
+import os
 import unittest
 
 import yaml
 
-import scdf_at
+from cloudfoundry.platform.standalone import deploy
+from src import install
 from cloudfoundry.cli import CloudFoundry
 from cloudfoundry.platform.config.db import DatasourceConfig
-from cloudfoundry.platform.config.kafka import KafkaConfig
 from cloudfoundry.platform.config.skipper import SkipperConfig
 from cloudfoundry.platform.config.dataflow import DataflowConfig
 from cloudfoundry.platform.config.configuration import ConfigurationProperties
@@ -33,10 +34,10 @@ from cloudfoundry.platform.config.installation import InstallationContext
 import cloudfoundry.platform.manifest.skipper as skipper_manifest
 import cloudfoundry.platform.manifest.dataflow as dataflow_manifest
 from cloudfoundry.platform.manifest.util import spring_application_json
-from cloudfoundry.platform.standalone import deploy
-from scdf_at.shell import Shell
 
-scdf_at.enable_debug_logging()
+from install.shell import Shell
+
+install.enable_debug_logging()
 
 logger = logging.getLogger(__name__)
 
@@ -85,9 +86,10 @@ class TestManifest(unittest.TestCase):
         manifest = dataflow_manifest.create_manifest(installation=installation, params=params)
         cf = CloudFoundry(config_props=config_props, deployer_config=installation.deployer_config,
                           shell=Shell(dry_run=True))
+        dir = os.path.dirname(__file__)
         deploy(cf=cf, installation=installation, create_manifest=dataflow_manifest.create_manifest,
                application_name='dataflow-server',
-               manifest_path='test.yml')
+               manifest_path=os.path.join(dir, 'test.yml'))
 
         doc = yaml.safe_load(manifest)
         app = doc['applications'][0]

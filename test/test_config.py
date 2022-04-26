@@ -14,7 +14,6 @@ Copyright 2022 the original author or authors.
 __author__ = 'David Turanski'
 
 import unittest
-import scdf_at
 from cloudfoundry.platform.config.db import DBConfig
 from cloudfoundry.platform.config.configuration import ConfigurationProperties
 from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
@@ -22,9 +21,9 @@ from cloudfoundry.platform.config.service import CloudFoundryServicesConfig, Ser
 from cloudfoundry.platform.config.kafka import KafkaConfig
 from cloudfoundry.platform.config.installation import InstallationContext
 import logging
-import scdf_at
+from src import install
 
-scdf_at.enable_debug_logging()
+install.enable_debug_logging()
 
 logger = logging.getLogger(__name__)
 

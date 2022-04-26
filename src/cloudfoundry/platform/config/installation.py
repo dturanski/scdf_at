@@ -15,7 +15,6 @@ __author__ = 'David Turanski'
 
 import logging
 import os
-import re
 
 from cloudfoundry.platform.config.environment import EnvironmentAware
 from cloudfoundry.platform.config.db import DBConfig

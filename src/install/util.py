@@ -15,7 +15,6 @@ __author__ = 'David Turanski'
 
 import logging
 import time
-import urllib
 
 import requests
 import json
@@ -95,9 +94,8 @@ def __masked__(obj):
 
 
 def mask(k, v):
-
     secret_words = ['password', 'secret', 'username', 'user', 'credentials']
     for secret in secret_words:
         if secret in k.lower():
-            return "*"*8 if v else None
+            return "*" * 8 if v else None
     return v

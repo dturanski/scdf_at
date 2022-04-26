@@ -15,7 +15,7 @@ __author__ = 'David Turanski'
 
 import json
 import re
-import scdf_at.util as util
+import src.install.util as util
 
 
 class JSonEnabled(json.JSONEncoder):

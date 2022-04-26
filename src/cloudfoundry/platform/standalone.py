@@ -34,8 +34,8 @@ import os
 import cloudfoundry.platform.manifest.skipper as skipper_manifest
 import cloudfoundry.platform.manifest.dataflow as dataflow_manifest
 
-from scdf_at.shell import Shell
-from scdf_at.util import Poller, wait_for_200
+from install.shell import Shell
+from install.util import Poller, wait_for_200
 
 logger = logging.getLogger(__name__)
 

@@ -16,9 +16,9 @@ __author__ = 'David Turanski'
 import json
 import logging
 import re
-from scdf_at.shell import Shell
+from install.shell import Shell
 from cloudfoundry.domain import Service, App
-from scdf_at.util import Poller, masked
+from install.util import Poller, masked
 
 logger = logging.getLogger(__name__)
 

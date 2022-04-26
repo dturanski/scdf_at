@@ -24,7 +24,7 @@ from cloudfoundry.platform.config.installation import InstallationContext
 from cloudfoundry.platform.config.dataflow import DataflowConfig
 from cloudfoundry.platform.config.db import DatasourceConfig
 from cloudfoundry.platform.config.deployer import CloudFoundryDeployerConfig
-from scdf_at import enable_debug_logging
+from install import enable_debug_logging
 
 logger = logging.getLogger(__name__)
 

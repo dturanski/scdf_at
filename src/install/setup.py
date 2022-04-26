@@ -22,10 +22,10 @@ from optparse import OptionParser
 from cloudfoundry.platform import standalone, tile
 from cloudfoundry.platform.config.installation import InstallationContext
 from cloudfoundry.platform.config.service import ServiceConfig
-from scdf_at import enable_debug_logging
-from scdf_at.db import init_db
+from install import enable_debug_logging
+from install.db import init_db
 from cloudfoundry.platform.registration import register_apps
-from scdf_at.util import masked
+from install.util import masked
 
 logger = logging.getLogger(__name__)
 

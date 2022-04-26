@@ -16,10 +16,11 @@ __author__ = 'David Turanski'
 import logging
 import os
 import shutil
-from scdf_at.util import masked
+
 from os.path import exists
 
-from scdf_at.shell import Shell
+from install.shell import Shell
+from install.util import masked
 
 logger = logging.getLogger(__name__)
 

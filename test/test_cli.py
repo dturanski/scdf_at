@@ -23,7 +23,7 @@ from cloudfoundry.platform.config.configuration import ConfigurationProperties
 from cloudfoundry.platform.config.service import ServiceConfig
 from cloudfoundry.platform.config.installation import InstallationContext
 
-from scdf_at.shell import Shell
+from install.shell import Shell
 
 
 class MockShell:

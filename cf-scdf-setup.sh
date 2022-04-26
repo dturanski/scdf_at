@@ -60,7 +60,7 @@ elif [[ "$os" == "Darwin" ]]; then
   fi
 
 fi
-export PYTHONPATH=./src/python:$PYTHONPATH
+export PYTHONPATH=./src:$PYTHONPATH
 python3 -m scdf_at.clean
 if [[ $? > 0 ]]; then
   exit 1
@@ -71,5 +71,5 @@ python3 -m scdf_at.setup $ARGS
 if [[ $? > 0 ]]; then
   exit 1
 fi
-load_file "cf_at.properties"
+load_file "cf_scdf.properties"
 echo "SERVER_URI=$SERVER_URI"

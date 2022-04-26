@@ -32,7 +32,7 @@ class DBConfig(EnvironmentAware):
 
     @classmethod
     def assert_required_keys(cls, env):
-        EnvironmentAware.assert_required_keys( env,
+        EnvironmentAware.assert_required_keys(env,
                                               [cls.provider_key,
                                                cls.host_key,
                                                cls.port_key,
