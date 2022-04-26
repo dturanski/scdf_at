@@ -8,7 +8,7 @@ def setup_test_suite():
     test_suite = test_loader.discover('test', pattern='test_*.py')
     return test_suite
 
-setup(name='scdf-cf-setup',
+setup(name='scdf_cf_setup',
       version='0.0.1',
       test_suite='__main__.setup_test_suite',
       description='A tool to support Spring Cloud Dataflow installations on Cloud Foundry',

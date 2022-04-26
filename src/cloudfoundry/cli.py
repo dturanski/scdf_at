@@ -190,7 +190,7 @@ class CloudFoundry:
             logger.info("deleted service %s" % service_name)
         return proc
 
-    def service_key(self, service_name, key_name='scdf-cf-setup'):
+    def service_key(self, service_name, key_name='scdf_cf_setup'):
         logger.info("getting service key %s for service %s" % (key_name, service_name))
         proc = self.shell.exec("cf service-key %s %s" % (service_name, key_name))
         msg = self.shell.stdout_to_s(proc)

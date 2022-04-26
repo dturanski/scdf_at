@@ -55,7 +55,7 @@ class ConfigurationProperties(EnvironmentAware):
                  stream_services=['rabbit'],
                  task_apps_uri='https://dataflow.spring.io/task-maven-latest',
                  cert_host=None,
-                 service_key_name='scdf-cf-setup'
+                 service_key_name='scdf_cf_setup'
                  ):
         self.platform = platform
         self.binder = binder
