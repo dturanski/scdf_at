@@ -201,12 +201,12 @@ The normal steps are:
 Typically we run tests repeatedly in the same Cloud Foundry target environment, so we delete all the apps and services,
 and related resources (service-keys, as needed) and initialize the external DB configured.
 This basically blows away the schema so dataflow can recreate it with flyway. Use the `--appsOnly` command line option
-to leave the services in place, since this takes time. Not recommended for CI testing, but useful if running locally.
+to leave the services in place, since creating service instances takes time.
 
 The basic command is
 
 [source, bash]
-python3 -m scdf_at.clean -v #--appsOnly
+python3 -m install.clean -v #--appsOnly
 
 use --help to list the available command line options
 
@@ -215,23 +215,27 @@ This creates all the required services, or verifies they are available, if `--ap
 Currently, if `clean` was not run first, and the server apps are deployed, setup will create new instances
 which map to a different route. That's a nice CF feature, but will cause the setup to break currently.
 So please run clean first, or delete the apps using the cloudfoundry cli.
-Setup writes the values `SERVER_URI` and any other required values, e.g. `SPRING_CLOUD_DATAFLOW_SCHEDULER_URL` that
-the tests need to `cf_scdf.properties`, which is loaded by the test process.
-Files are used for inter-process communication, since any OS environment variable set in a called process does not apply to the calling process.
+Setup writes the runtime properties such as `SERVER_URI` and any other required values, e.g. `SPRING_CLOUD_DATAFLOW_SCHEDULER_URL` that
+to `cf_scdf.properties`, which may be loaded to use the installation.
+the file is used for inter-process communication, since any OS environment variable set in a called process does not apply to the calling process.
 
 [source, bash]
-python3 -m scdf_at.setup
+python3 -m install.setup
 
 use `--help` to list the available command line options
 
-link:cf-scdf-setup.sh[cf-at.sh] is the common script that all SCDF Acceptance tests running in CI will run.
+link:cf-scdf-setup.sh[cf-scdf-setup.sh] is the common script that runs the clean and setup.
 It sets up the local environment to run the above commands:
 
 * installs any dependent Python libs
-* configures the Python environment (`export PYTHONPATH=./src/python:$PYTHONPATH`)
+* configures the Python environment (`export PYTHONPATH=./src:$PYTHONPATH`)
 * configures the Oracle client for Python
 * installs the cloudfoundry CLI, if necessary
 
-=== Run the tests,
+=== Build
 
-Load `cf_scdf.properties`, perform any additional setup, and run a maven command.
+==== Run the tests
+[source, bash]
+python -m unittest discover .
+
+
