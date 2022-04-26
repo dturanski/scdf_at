@@ -26,6 +26,7 @@ class SensitiveFormatter(logging.Formatter):
 
     @staticmethod
     def _filter(s):
+        print("************************* filtering")
         return re.sub(r':\/\/(.*?)\@', r'://', s)
 
     def format(self, record):

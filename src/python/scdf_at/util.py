@@ -38,7 +38,7 @@ class Poller:
         while not predicate and tries < self.max_retries:
             time.sleep(self.wait_sec)
             tries = tries + 1
-            logger.info("%d/%d %s" % (tries, self.max_retries, wait_message))
+            logger.info("%2d/%2d %s" % (tries, self.max_retries, wait_message))
             predicate = success_condition(*args)
             if failure_condition(*args):
                 break
