@@ -62,7 +62,7 @@ def create_manifest(installation, application_name='dataflow-server', params={})
     saj = format_saj(spring_application_json(installation, app_deployment,
                                              'spring.cloud.dataflow.task.platform.cloudfoundry.accounts'))
     app_config = dataflow_config.as_env()
-    print('format env' + format_env(app_config))
+
     return template.substitute({
         'application_name': application_name,
         'host_name': "%s-%d" % (application_name, random.randint(0, 1000)),
