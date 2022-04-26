@@ -35,7 +35,7 @@ class MockShell:
 Getting key %s for service instance %s as admin...
 
 {
-     "api_endpoint": "https://scheduler.sys.avenal.cf-app.com"
+     "api_endpoint": "https://scheduler.sys.somehost.cf-app.com"
 }
             """ % ('ci-scheduler', 'scdf-at')
 
@@ -47,7 +47,7 @@ class TestCommands(unittest.TestCase):
     def test_service_key(self):
         cf = CloudFoundry(self.installation().deployer_config, self.installation().config_props, MockShell())
         service_key = cf.service_key('ci-scheduler', 'scdf-at')
-        self.assertEqual('https://scheduler.sys.avenal.cf-app.com', service_key.get( 'api_endpoint'))
+        self.assertEqual('https://scheduler.sys.somehost.cf-app.com', service_key.get( 'api_endpoint'))
 
     def test_basic_shell(self):
         shell = Shell()
