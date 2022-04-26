@@ -193,7 +193,7 @@ When the dataflow server is up and running, pre-packaged stream and task apps ar
 Additional acceptance test apps are registered from link:app-imports.properties[app-imports.properties]
 This file is the normal app import format, but processed using a template processor that attempts to resolve `$BINDER` and `$DATAFLOW_VERSION`.
 
-== Running ATs
+== Usage
 
 The normal steps are:
 
@@ -232,9 +232,9 @@ It sets up the local environment to run the above commands:
 * configures the Oracle client for Python
 * installs the cloudfoundry CLI, if necessary
 
-=== Build
+== Build
 
-==== Run the tests
+=== Run the unit tests
 [source, bash]
 python -m unittest discover .
 
