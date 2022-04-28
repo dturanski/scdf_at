@@ -154,9 +154,9 @@ def init_db(db_config, initialize_db=False):
         if initialize_db:
             init_oracle_client()
             '''Oracle creates different user for each. Using the same DB service'''
-            init_oracle_db(db_config.dataflow_db_name, db_config.service_name)
+            init_oracle_db(db_config, db_config.dataflow_db_name)
             if db_config.skipper_db_name != db_config.dataflow_db_name:
-                init_oracle_db(db_config.skipper_db_name, db_config.service_name)
+                init_oracle_db(db_config, db_config.skipper_db_name)
 
         skipper_url = dataflow_url = "jdbc:oracle:thin:@%s:%d:%s" % (
             db_config.host, int(db_config.port), db_config.service_name)
