@@ -58,6 +58,8 @@ def clean(args):
             logger.info("deleting current services...")
             services = cf.services()
             for service in services:
+                if cf.service_key(service.name, installation.config_props.service_key_name):
+                    cf.delete_service_key(service.name, installation.config_props.service_key_name)
                 cf.delete_service(service.name)
         else:
             logger.info("'apps-only' option is set, keeping existing current services")

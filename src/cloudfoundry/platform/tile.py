@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 
 def client_credentials_from_service_key(cf, service_name, key_name):
     service_key = cf.create_service_key(service_name, key_name)
-    cf.delete_service_key(service_name, key_name)
     return {
         'SPRING_CLOUD_DATAFLOW_CLIENT_AUTHENTICATION_TOKEN_URI': service_key['access-token-url'],
         'SPRING_CLOUD_DATAFLOW_CLIENT_AUTHENTICATION_CLIENT_ID': service_key['client-id'],
