@@ -69,9 +69,9 @@ def setup_certs(cert_host, shell=Shell()):
         'openssl s_client -connect %s:443 -showcerts > %s.cer < /dev/null' % (cert_host, cert_host), capture_output=False)
     if proc.returncode > 0:
         shell.log_command(proc)
-        shell.log_stderr(proc)
-        shell.log_stdout(proc)
-        logger.warning('openssl command returns a non zero status, but seems to work anyway')
+        if not exists("%.cer" % cert_host):
+            raise RuntimeError("openssl command failed")
+        logger.warning('openssl command returns a non zero status, but seemed to work anyway')
 
     java_home = os.getenv('JAVA_HOME')
     if not java_home:
