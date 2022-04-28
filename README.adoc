@@ -4,39 +4,115 @@
 This is a Python 3 port of the Cloud Foundry setup from https://github.com/spring-cloud/spring-cloud-dataflow-acceptance-tests[SCDF acceptance tests].
 
 == About
+
 This project started as an better way setup SCDF in a Cloud Foundry environment to support internal SCDF acceptance testing.
 
 Now I think this tool a generally useful for installing SCDF in any test or production Cloud Foundry environment.
 It was a primary goal of SCDF acceptance testing to test in all target environments.
 For Cloud Foundry, that means testing against different cf service configurations, but also against an external Kafka message brokers and external databases.
-In short, it exposes every significant configuration option you need to install SCDF as standalone app instances
-or using the Spring Cloud Dataflow service for TAS (the *tile*).
+In short, it exposes every significant configuration option you need to install SCDF as standalone app instances or using the Spring Cloud Dataflow service for TAS (the *tile*).
 
 [NOTE]
-Windows users: I'm pretty certain this won't work. Linux or Mac only, sorry.
+Windows users: I'm pretty certain this won't work.
+Linux or Mac only, sorry.
 
 ==== Why didn't you write this in Java?
-It's a fair point. It only occurred to me after I started. The original bash implementation uses the CF cli for everything,
-so my immediate reaction was that Java ProcessBuilder is extremely cumbersome compared to a language such as Python -
-my favorite alternative. But, the CF cli could be replaced by https://github.com/cloudfoundry/cf-java-client['cf-java-client'],
-as we do for the https://github.com/spring-cloud/spring-cloud-deployer-cloudfoundry[CloudFoundry deployer].
-If you are into project Reactor or want to learn about it, this would be a great opportunity to use cf-java-client
-in many ways the deployer doesn't.
 
-The CF interface turned out to be about 20% of this code. The configuration is the main thing. And for that I needed something
-akin to Spring Boot, or at least Spring Framework. So it can be done, but I imagine one would need to disable some of boot's auto-config that might
-recognize some of these properties which are intended only for the SCDF deployment.
+It's a fair point.
+It only occurred to me after I started.
+The original bash implementation uses the CF cli for everything, so my immediate reaction was that Java ProcessBuilder is extremely cumbersome compared to a language such as Python - my favorite alternative.
+But, the CF cli could be replaced by https://github.com/cloudfoundry/cf-java-client['cf-java-client'], as we do for the https://github.com/spring-cloud/spring-cloud-deployer-cloudfoundry[CloudFoundry deployer].
+If you are into project Reactor or want to learn about it, this would be a great opportunity to use cf-java-client in many ways the deployer doesn't.
 
-==== SQL Database
-SCDF and Skipper require a relational DB.
-The installation can use any Cloud Foundry SQL service broker, or an external database, such as postgresql or oracle.
+The CF interface turned out to be about 20% of this code.
+The configuration is the main thing.
+And for that I needed something akin to Spring Boot, or at least Spring Framework.
+So it can be done, but I imagine one would need to disable some of boot's auto-config that might recognize some of these properties which are intended only for the SCDF deployment.
 
-==== Message Broker
-This installation  works with the Cloud Foundry rabbit service broker or an external Kafka broker.
+== SQL Database
+
+SCDF and Skipper require a relational DB. This may be any Cloud Foundry SQL service broker,
+or an external Postgresql or Oracle database.
+SCDF and Skipper may share the same DB instance or separate (recommended).
+
+[NOTE]
+Currently, this tool assumes the same password is shared by skipper and dataflow servers.
+
+=== External DB
+If using an external SQL Provider, read the following section.
+This tool can optionally initialize the DB by setting the `--initializeDB` command line option.
+DB initialization is disabled by default but most of the configuration described in the following sections are required
+to configure the Spring Datasource(s) for the dataflow and skipper servers to use to connect to the DB.
+
+=== External DB initialization
+By default, it assumes existing DB instances.
+If initialize DB is enabled, the tool puts the database in an initial state so that the dataflow server can initialize the schema.
+You can see exactly what happens in more detail xref:src/install/db.py[here]
+
+=== Postgresql
+If DB initialization is enabled the database(s) are dropped and recreated.
+Both databases use the same user account which must be created beforehand.
+
+Example:
+
+[source,bash]
+export SQL_PROVIDER=postgresql
+export SQL_HOST=postgreshost
+export export SQL_PORT=5432
+export SQL_USERNAME=postgres_user
+export SQL_PASSWORD=password
+#
+# This must be a privileged account that can create and drop the server users.
+#
+export SQL_SYSTEM_USER=system_user
+export SQL_SYSTEM_PASSWORD=system_password
+#
+The resulting url(s) will be `jdbc:postgresql://postgreshost:5432/scdf` and `jdbc:postgresql//:postgreshost:5432/skipper`
+
+==== Oracle
+You must set `SQL_SERVICE_NAME` to match the global service name. `SQL_USERNAME` is not used since the users map to
+`SQL_DATAFLOW_DB_NAME` and `SQL_SKIPPER_DB_NAME`.
+
+If initialization is enabled:
+For existing users, any current connections to that user will be terminated.
+Then the user and all associated resources are dropped, and the users are created with all privileges granted.
+
+Example:
+
+[source,bash]
+export SQL_PROVIDER=oracle
+export SQL_HOST=oraclehost
+export SQL_PORT=1521
+export SQL_PASSWORD=password
+#
+# This must be a privileged account that can create and drop the server users.
+#
+export SQL_SYSTEM_USER='SYSTEM'
+export SQL_SYSTEM_PASSWORD=system_password
+#
+# The Oracle users for SCDF and Skipper use these properties and are granted all privileges.
+#
+export SQL_DATAFLOW_DB_NAME='scdf'
+#
+# SQL_SKIPPER_DB_NAME is optional, same as SQL_DATAFLOW_DB_NAME by default
+#
+export SQL_SKIPPER_DB_NAME='skipper'
+export SQL_SERVICE_NAME='xe'
+
+`SQL_SERVICE_NAME` is used build the JDBC url.
+`SQL_DATAFLOW_DB_NAME` and `SQL_SKIPPER_DB_NAME` map to the respective users(schema) for the corresponding servers.
+
+The resulting url will be `jdbc:oracle:thin:@oraclehost:1521:xe`
+
+
+== Message Broker
+
+This installation works with the Cloud Foundry rabbit service broker or an external Kafka broker.
 An external RabbitMQ broker is not supported, since the CF is a great place to run RabbitMQ.
-This would need to be extended to support other message brokers
+This would need to be extended to support other message brokers. The external Kafka broker is assumed to support
+JAAS security.
 
-==== Configuration
+== Configuration
 
 Everything is configured via environment variables, with sane default settings.
 The installation configuration framework binds configuration objects to environment variables.
@@ -45,14 +121,14 @@ This extremely simple binding mechanism is inspired by the Spring Framework, but
 There are so many configuration options, that it's probably a good idea to provide only one way to do things.
 
 The exception to the prefix rule are the basic AT configuration properties which do not use a prefix.
-Examples are `BINDER`, `PLATFORM`, `MAVEN_REPOS` (more details to follow). This is subject to change though.
+Examples are `BINDER`, `PLATFORM`, `MAVEN_REPOS` (more details to follow).
+This is subject to change though.
 
-
-== Cloud Foundry Platform Configuration
+=== Cloud Foundry Platform Configuration
 
 These configuration properties apply to either platform (standalone or tile)
 
-[source, bash]
+[source,bash]
 #
 # CloudFoundry connect properties.
 # For the tile, these are only required to connect. They do not apply to the Cloud Foundry deployer.
@@ -89,10 +165,10 @@ export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD=password
 #export SQL_PORT=5432
 #export SQL_PASSWORD=postgresql_password
 #export SQL_USERNAME=postgresql_username
-#
-# SQL_INDEX used as a suffix for the dbname to create unique schemas per environment
-#
-#export SQL_INDEX=0
+#export SQL_SYSTEM_USERNAME=system_username
+#export SQL_SYSTEM_PASSWORD=system_password
+#export SQL_DATAFLOW_DB_NAME=scdf1234
+#export SQL_SKIPPER_DB_NAME=skipper5678
 #
 # External Kafka Configuration
 #
@@ -124,21 +200,22 @@ export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD=password
 #export TASK_APPS_URI=https://dataflow.spring.io/task-maven-latest
 #export STREAM_APPS_URI=https://dataflow.spring.io/rabbitmq-maven-latest"
 
-== The Standalone Platform
+=== The Standalone Platform
 
 This installs dataflow-server and skipper-server apps for given versions, and installs any configured services.
-By default, the servers will create and use `rabbit` and `mysql` platform service. Optionally, it will use `config-server` and
-`cf-scheduler`. The configuration derives some properties,such as `stream_apps_uri`, which is dependent on the `binder`.
+By default, the servers will create and use `rabbit` and `mysql` platform service.
+Optionally, it will use `config-server` and
+`cf-scheduler`.
+The configuration derives some properties,such as `stream_apps_uri`, which is dependent on the `binder`.
 
 The `standalone` platform is generally easier for testing and troubleshooting OSS and PRO dataflow editions deployed to Cloud Foundry.
-The CF manifest generation is designed to by as flexible as possible so you can directly set virtually any native Deployer, Dataflow, or Skipper property,
-which is not true of the tile, which uses its own configuration mapping.
+The CF manifest generation is designed to by as flexible as possible so you can directly set virtually any native Deployer, Dataflow, or Skipper property, which is not true of the tile, which uses its own configuration mapping.
 
-=== Standalone Configuration
+==== Standalone Configuration
 
 The standalone platform uses the following additional configuration properties:
 
-[source, bash]
+[source,bash]
 #
 # Trust certs from the api host, derived from the deployer url by default
 #
@@ -161,19 +238,22 @@ export SKIPPER_VERSION=2.9.0-SNAPSHOT
 # Set if using a CF SQL service or add services, separated by ','
 #export TASK_SERVICES=mysql
 
-== The Tile Platform
+=== The Tile Platform
 
 The tile platform configuration creates a Cloud Foundry Dataflow service instance.
 The configuration is less flexible, but it's easier to set up than standalone.
-No jars or manifests are needed. The configuration properties map to tile configuration, provided as
-json. By default, no additional services are needed, since it creates what it needs behind the scene.
-The tile works with external DB, and an external Kafka broker if configured for it. Optionally, it can
-work with the Scheduler service and/or the Config Server. This is useful for verifying tile releases.
+No jars or manifests are needed.
+The configuration properties map to tile configuration, provided as json.
+By default, no additional services are needed, since it creates what it needs behind the scene.
+The tile works with external DB, and an external Kafka broker if configured for it.
+Optionally, it can work with the Scheduler service and/or the Config Server.
+This is useful for verifying tile releases.
 
-=== Tile Configuration
+==== Tile Configuration
+
 Additional configuration properties are applied for the tile:
 
-[source, bash]
+[source,bash]
 #
 # Default is derived from deployer api endpoint, but it may be possible to configure an external
 # OAuth server.
@@ -181,9 +261,10 @@ Additional configuration properties are applied for the tile:
 #export CERT_HOST=uaa.sys.some_host.cf-app.com
 
 == App Registration
+
 When the dataflow server is up and running, pre-packaged stream and task apps are automatically registered from a configurable location.
 
-[source, bash]
+[source,bash]
 #
 # App Registrion
 #
@@ -198,28 +279,28 @@ This file is the normal app import format, but processed using a template proces
 The normal steps are:
 
 === Clean up the environment
-Typically we run tests repeatedly in the same Cloud Foundry target environment, so we delete all the apps and services,
-and related resources (service-keys, as needed) and initialize the external DB configured.
-This basically blows away the schema so dataflow can recreate it with flyway. Use the `--appsOnly` command line option
-to leave the services in place, since creating service instances takes time.
+
+Typically we run tests repeatedly in the same Cloud Foundry target environment, so we delete all the apps and services, and related resources (service-keys, as needed) and initialize the external DB configured.
+This basically blows away the schema so dataflow can recreate it with flyway.
+Use the `--appsOnly` command line option to leave the services in place, since creating service instances takes time.
 
 The basic command is
 
-[source, bash]
+[source,bash]
 python3 -m install.clean -v #--appsOnly
 
 use --help to list the available command line options
 
 === Setup the platform
+
 This creates all the required services, or verifies they are available, if `--appsOnly`.
-Currently, if `clean` was not run first, and the server apps are deployed, setup will create new instances
-which map to a different route. That's a nice CF feature, but will cause the setup to break currently.
+Currently, if `clean` was not run first, and the server apps are deployed, setup will create new instances which map to a different route.
+That's a nice CF feature, but will cause the setup to break currently.
 So please run clean first, or delete the apps using the cloudfoundry cli.
-Setup writes the runtime properties such as `SERVER_URI` and any other required values, e.g. `SPRING_CLOUD_DATAFLOW_SCHEDULER_URL` that
-to `cf_scdf.properties`, which may be loaded to use the installation.
+Setup writes the runtime properties such as `SERVER_URI` and any other required values, e.g. `SPRING_CLOUD_DATAFLOW_SCHEDULER_URL` that to `cf_scdf.properties`, which may be loaded to use the installation.
 the file is used for inter-process communication, since any OS environment variable set in a called process does not apply to the calling process.
 
-[source, bash]
+[source,bash]
 python3 -m install.setup
 
 use `--help` to list the available command line options
@@ -235,7 +316,8 @@ It sets up the local environment to run the above commands:
 == Build
 
 === Run the unit tests
-[source, bash]
+
+[source,bash]
 pip install -r requirements.txt
 python -m unittest discover .
 

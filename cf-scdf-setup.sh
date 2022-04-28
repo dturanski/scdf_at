@@ -61,7 +61,7 @@ elif [[ "$os" == "Darwin" ]]; then
 
 fi
 export PYTHONPATH=./src:$PYTHONPATH
-python3 -m install.clean
+python3 -m install.clean --appsOnly
 if [[ $? > 0 ]]; then
   exit 1
 fi

@@ -82,6 +82,7 @@ class InstallationContext(EnvironmentAware):
             if 'rabbit' in self.config_props.stream_services:
                 logger.warning('removing rabbit from stream services for Kafka binder')
                 self.config_props.stream_services.remove('rabbit')
+
         if self.dataflow_config.tasks_enabled and self.db_config and self.db_config.provider == 'oracle':
             self.dataflow_config.add_oracle_application_properties()
 

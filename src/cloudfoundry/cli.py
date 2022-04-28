@@ -48,7 +48,7 @@ class CloudFoundry:
             logger.info("\n" + json.dumps(cf.current_target()))
             CloudFoundry.initialized = True
         else:
-            logger.debug("Already logged in. Call 'cf logout'")
+            logger.debug("Already logged in")
         return cf
 
     def __init__(self, deployer_config, config_props, shell):
@@ -99,7 +99,7 @@ class CloudFoundry:
                 key = line[0:line.index(':')].strip()
                 value = line[line.index(':') + 1:].strip()
                 target[key] = value
-        logger.debug("current target:\n%s" % json.dumps(target,indent=4))
+        logger.debug("current target:\n%s" % json.dumps(target, indent=4))
         return target
 
     def target(self, org=None, space=None):
@@ -149,7 +149,7 @@ class CloudFoundry:
         config = "-c '%s'" % json.dumps(service_config.config) if service_config.config else ""
 
         proc = self.shell.exec("cf create-service %s %s %s %s" % (service_config.service, service_config.plan,
-                                                                  service_config.name,config))
+                                                                  service_config.name, config))
         self.shell.log_stdout(proc)
         if self.shell.dry_run:
             return proc
@@ -158,6 +158,11 @@ class CloudFoundry:
             logger.error(self.shell.stdout_to_s(proc))
             return proc
 
+        else:
+            self.wait_for_create_service(service_config)
+        return proc
+
+    def wait_for_create_service(self, service_config):
         if not self.poller.wait_for(
                 success_condition=lambda: self.service(service_config.name).status == 'create succeeded',
                 failure_condition=lambda: self.service(service_config.name).status == 'create failed',
@@ -165,7 +170,6 @@ class CloudFoundry:
             raise RuntimeError("FATAL: unable to create service %s" % service_config)
         else:
             logger.info("created service %s" % service_config.name)
-        return proc
 
     def delete_service(self, service_name):
         logger.info("deleting service %s" % service_name)
@@ -177,7 +181,11 @@ class CloudFoundry:
         if proc.returncode:
             logger.error(self.shell.stdout_to_s(proc))
             return proc
+        else:
+            self.wait_for_delete_service(service_name)
+        return proc
 
+    def wait_for_delete_service(self, service_name):
         def fail():
             service = self.service(service_name)
             return service and service.status == 'delete failed'
@@ -188,7 +196,6 @@ class CloudFoundry:
             raise RuntimeError("FATAL: %s " % str(self.service(service_name)))
         else:
             logger.info("deleted service %s" % service_name)
-        return proc
 
     def service_key(self, service_name, key_name='scdf_cf_setup'):
         logger.info("getting service key %s for service %s" % (key_name, service_name))

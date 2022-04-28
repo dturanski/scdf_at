@@ -17,6 +17,7 @@ import logging
 import random
 from string import Template
 from cloudfoundry.platform.manifest.util import format_saj, spring_application_json, format_yaml_list, format_env
+from install.util import masked
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,7 @@ applications:
 
 def create_manifest(installation, application_name='skipper-server', params={}):
     datasource_config = installation.datasources_config['skipper']
+    logger.debug('datasource_config:' + masked(datasource_config))
     config_props = installation.config_props
     jar_path = config_props.skipper_jar_path
     server_services = [installation.services_config.get('sql').name] if installation.services_config.get('sql') else []

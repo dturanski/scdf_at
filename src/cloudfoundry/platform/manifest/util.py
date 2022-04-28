@@ -60,7 +60,6 @@ def format_yaml_list(items, indent=4):
 
 
 def format_env(env, delim=': '):
-    print(env)
     s = ""
     i = 0
     for k, v in env.items():

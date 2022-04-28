@@ -15,6 +15,7 @@ __author__ = 'David Turanski'
 
 import logging
 import time
+import traceback
 
 import requests
 import json
@@ -22,6 +23,10 @@ from urllib.parse import urlparse, urlunparse
 
 logger = logging.getLogger(__name__)
 
+
+def get_traceback(e):
+    lines = traceback.format_exception(type(e), e, e.__traceback__)
+    return ''.join(lines)
 
 class Poller:
     def __init__(self, wait_sec, max_retries):

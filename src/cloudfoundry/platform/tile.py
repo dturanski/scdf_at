@@ -56,7 +56,6 @@ def configure_dataflow_service(installation):
         dataflow_tile_configuration.update({'scheduler': {'name': scheduler.name, 'plan': scheduler.plan}})
     if installation.db_config:
         if installation.dataflow_config.streams_enabled:
-            print(installation.datasources_config.get('skipper'))
             dataflow_tile_configuration['skipper-relational'] = user_provided(installation.datasources_config.get('skipper'))
         if installation.dataflow_config.tasks_enabled:
             dataflow_tile_configuration['relational-data-service'] = user_provided(installation.datasources_config.get('dataflow'))

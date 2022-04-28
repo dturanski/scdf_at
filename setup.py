@@ -1,3 +1,4 @@
+# This is a Python build spec. Not related to other 'setup' modules in the app.
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages

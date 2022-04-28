@@ -35,6 +35,9 @@ def add_options_for_platform(parser, platform):
     parser.add_option('-v', '--debug',
                       help='debug level logging',
                       dest='debug', action='store_true')
+    parser.add_option('--createDB',
+                      help='enable external DB initialization',
+                      dest='create_db', action='store_true')
     if platform == 'cloudfoundry':
         parser.add_option('-d', '--doNotDownload',
                           help='skip the downloading of the SCDF/Skipper servers',
@@ -46,17 +49,22 @@ def setup(args):
     parser.usage = "%prog setup options"
 
     try:
+
         installation = InstallationContext.from_env_vars()
-        logger.debug("Setup using config:\n" + json.dumps(installation.masked(), indent=4))
         add_options_for_platform(parser, installation.config_props.platform)
         options, arguments = parser.parse_args(args)
         if options.debug:
+
             enable_debug_logging()
+
+        logger.debug("Setup using config:\n%s" % masked(installation))
 
         cf = CloudFoundry.connect(deployer_config=installation.deployer_config,
                                   config_props=installation.config_props)
+
+        # Initialize database
         if installation.db_config:
-            installation.datasources_config = init_db(installation)
+            installation.datasources_config = init_db(installation.db_config, options.create_db)
 
         if installation.services_config.get('scheduler'):
             ensure_required_services(cf, dict(
@@ -112,6 +120,8 @@ def ensure_required_services(cf, services_config):
                             required_services['deleting'].append(service)
                         elif service.status == 'create failed':
                             required_services['failed'].append(service)
+                        elif service.status == 'delete failed':
+                            required_services['failed'].append(service)
                         else:
                             required_services['unknown'].append(service)
                 else:
@@ -119,16 +129,14 @@ def ensure_required_services(cf, services_config):
 
         for s in required_services['deleting']:
             logger.info("waiting for required service %s to be deleted" % str(s))
-            if not cf.wait_for(success_condition=lambda: cf.service(s.name) is None,
-                               wait_message="waiting for %s to be deleted" % s.name):
-                raise RuntimeError("FATAL: %s " % cf.service(s.name))
-            required_services['create'].append(ServiceConfig.of_service(s))
+            cf.wait_for_delete_service(s.name)
+            required_services['create'].append(s)
+        for s in required_services['failed']:
+            logger.warning("required service %s ' in a failed state. Attempting delete..." % s.name)
+            cf.delete_service(s.name)
 
         for s in required_services['wait']:
-            if not cf.wait_for(success_condition=lambda: cf.service(s.name).status == 'create succeeded',
-                               wait_message="waiting for %s status 'create succeeded'" % s.name):
-                raise RuntimeError("FATAL: %s " % cf.service(s.name))
-
+            cf.wait_for_create_service(s)
         for s in required_services['create']:
             logger.debug("creating service:\n%s" + masked(s))
             cf.create_service(s)

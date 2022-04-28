@@ -17,8 +17,26 @@ import logging
 import os
 from cloudfoundry.platform.config.environment import EnvironmentAware
 from cloudfoundry.domain import JSonEnabled
+from install.util import masked
 
 logger = logging.getLogger(__name__)
+
+
+class Provider:
+    oracle_keys = ['oracle']
+    postgresql_keys = ['postgresql', 'postgres']
+    all_keys = oracle_keys + postgresql_keys
+
+    def __init__(self, p):
+        if not p in Provider.all_keys:
+            raise ValueError("provider '%s' is unsupported or missing" % str(p))
+        self.p = p
+
+    def is_postrgesql(self):
+        return self.p in Provider.postgresql_keys
+
+    def is_oracle(self):
+        return self.p in Provider.oracle_keys
 
 
 class DBConfig(EnvironmentAware):
@@ -28,7 +46,11 @@ class DBConfig(EnvironmentAware):
     port_key = prefix + 'PORT'
     username_key = prefix + 'USERNAME'
     password_key = prefix + 'PASSWORD'
-    index_key = prefix + 'INDEX'
+    dataflow_db_name_key = prefix + 'DATAFLOW_DB_NAME'
+    skipper_db_name_key = prefix + 'SKIPPER_DB_NAME'
+    service_name_key = prefix + 'SERVICE_NAME'
+    system_username_key = prefix + 'SYSTEM_USERNAME'
+    system_password_key = prefix + 'SYSTEM_PASSWORD'
 
     @classmethod
     def assert_required_keys(cls, env):
@@ -37,9 +59,11 @@ class DBConfig(EnvironmentAware):
                                               [cls.provider_key,
                                                cls.host_key,
                                                cls.port_key,
-                                               cls.username_key,
                                                cls.password_key,
-                                               cls.index_key])
+                                               cls.dataflow_db_name_key,
+                                               cls.system_username_key,
+                                               cls.system_password_key
+                                               ])
 
     @classmethod
     def from_env_vars(cls, env=os.environ):
@@ -53,19 +77,41 @@ class DBConfig(EnvironmentAware):
                         username=env.get(cls.username_key),
                         password=env.get(cls.password_key),
                         provider=env.get(cls.provider_key),
-                        index=env.get(cls.index_key))
+                        dataflow_db_name=env.get(cls.dataflow_db_name_key),
+                        skipper_db_name=env.get(cls.skipper_db_name_key),
+                        service_name=env.get(cls.service_name_key),
+                        system_username=env.get(cls.system_username_key),
+                        system_password=env.get(cls.system_password_key)
+                        )
 
-    def __init__(self, host, port, username, password, provider, index='0'):
+    def __init__(self, host, port, username, password, provider, dataflow_db_name, system_username, system_password,
+                 skipper_db_name=None, service_name=None):
         self.host = host
         self.port = port
         self.username = username
         self.password = password
-        self.provider = provider
-        self.index = index
+        self.provider = Provider(provider)
+        self.dataflow_db_name = dataflow_db_name
+        self.skipper_db_name = skipper_db_name
+        self.service_name = service_name
+        self.system_username = system_username
+        self.system_password = system_password
+
+        if not self.skipper_db_name:
+            self.skipper_db_name = self.dataflow_db_name
+        logger.debug(masked(self))
+
+        if self.provider.is_oracle() and not self.service_name:
+            raise ValueError("oracle DBConfig requires property '%s'" % self.service_name_key)
+        if self.provider.is_postrgesql() and not self.username:
+            raise ValueError("postgresql DBConfig requires property '%s'" % self.username_key)
 
 
-# Doesn't map to env. Created on the fly in db.py
 class DatasourceConfig(JSonEnabled):
+    """
+    Not configured in environment. Built by init_db if using an external DB
+    """
+
     prefix = "SPRING_DATASOURCE_"
     url_key = prefix + "URL"
     username_key = prefix + "USERNAME"
