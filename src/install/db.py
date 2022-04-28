@@ -79,7 +79,7 @@ def init_oracle_db(db_config, username):
         conn_info = {
             'host': db_config.host,
             'port': db_config.port,
-            'user': db_config.system_user,
+            'user': db_config.system_username,
             'psw': db_config.system_password,
             'service': db_config.service_name
         }
