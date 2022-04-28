@@ -79,7 +79,12 @@ def setup(cf, installation, do_not_download, shell=Shell()):
     dataflow_uri = "https://" + dataflow_app.route
     if not wait_for_200(poller, dataflow_uri):
         raise RuntimeError("dataflow server deployment failed")
-    return {'SERVER_URI': dataflow_uri}
+
+    runtime_properties=installation.deployer_config.as_env().copy()
+    runtime_properties.update({
+        'SPRING_CLOUD_DATAFLOW_CLIENT_SERVER_URI' : dataflow_uri
+    })
+    return runtime_properties
 
 
 def clean(cf, config):
