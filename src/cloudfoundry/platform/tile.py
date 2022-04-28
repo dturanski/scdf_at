@@ -38,7 +38,6 @@ def client_credentials_from_service_key(cf, service_name, key_name):
 
 
 def setup(cf, installation):
-    setup_certs(installation.config_props.cert_host)
     service_name = installation.services_config['dataflow'].name
     key_name = installation.config_props.service_key_name
     return client_credentials_from_service_key(cf, service_name, key_name)
