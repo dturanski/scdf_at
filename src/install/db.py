@@ -39,14 +39,14 @@ def init_postgres_db(db_config, dbname):
             connect_timeout=5)
         conn.autocommit = True
         with conn.cursor() as cur:
-            cur.execute("SELECT count(*) FROM pg_stat_activity WHERE datname = %s;", dbname)
+            cur.execute("SELECT count(*) FROM pg_stat_activity WHERE datname = %s;" % dbname)
             live_connections = cur.fetchone()[0]
             logger.debug("DB %s has %d live connections" % (dbname, live_connections))
             while live_connections > 0:
                 # Terminate any existing connections to the database
-                cur.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s;", dbname)
+                cur.execute("SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s;" % dbname)
                 time.sleep(1.0)
-                cur.execute("SELECT count(*) FROM pg_stat_activity WHERE datname = %s;", dbname)
+                cur.execute("SELECT count(*) FROM pg_stat_activity WHERE datname = %s;" % dbname)
                 live_connections = cur.fetchone()[0]
                 logger.debug("DB %s has %d live connections" % (dbname, live_connections))
 
