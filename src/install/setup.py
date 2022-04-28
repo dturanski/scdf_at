@@ -35,9 +35,9 @@ def add_options_for_platform(parser, platform):
     parser.add_option('-v', '--debug',
                       help='debug level logging',
                       dest='debug', action='store_true')
-    parser.add_option('--createDB',
+    parser.add_option('--initializeDB',
                       help='enable external DB initialization',
-                      dest='create_db', action='store_true')
+                      dest='initialize_db', action='store_true')
     if platform == 'cloudfoundry':
         parser.add_option('-d', '--doNotDownload',
                           help='skip the downloading of the SCDF/Skipper servers',
@@ -64,7 +64,7 @@ def setup(args):
 
         # Initialize database
         if installation.db_config:
-            installation.datasources_config = init_db(installation.db_config, options.create_db)
+            installation.datasources_config = init_db(installation.db_config, options.initialize_db)
 
         if installation.services_config.get('scheduler'):
             ensure_required_services(cf, dict(
