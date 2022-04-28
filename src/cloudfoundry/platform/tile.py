@@ -66,7 +66,7 @@ def configure_dataflow_service(installation):
 def setup_certs(cert_host, shell=Shell()):
     logger.debug("importing the cert_host certificate for %s to a JDK trust-store" % cert_host)
     proc = shell.exec(
-        'openssl s_client -connect %s:443 -showcerts > %s.cer < /dev/null' % (cert_host, cert_host))
+        'openssl s_client -connect %s:443 -showcerts > %s.cer < /dev/null' % (cert_host, cert_host), capture_output=False)
     if proc.returncode > 0:
         logger.warning('openssl command returns a non zero status, but seems to work anyway')
 
