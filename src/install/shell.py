@@ -31,7 +31,7 @@ class Shell:
             proc = subprocess.CompletedProcess(args, 0)
             return proc
         else:
-            return subprocess.run(args, capture_output=capture_output)
+            return subprocess.run(args=[cmd], capture_output=capture_output)
 
     @classmethod
     def log_stdout(cls, completed_proc):
