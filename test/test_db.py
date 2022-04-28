@@ -36,23 +36,27 @@ class DBTestCase(unittest.TestCase):
         datasources = init_db(postgres_env())
         self.assertEqual('user', datasources['skipper'].username)
         self.assertEqual('password', datasources['skipper'].password)
-        self.assertEqual('jdbc:postgresql://host:5432/skipper5678', datasources['skipper'].url)
+        self.assertEqual('jdbc:postgresql://host:5432/skipper5678?user=user&password=password',
+                         datasources['skipper'].url)
 
         self.assertEqual('user', datasources['dataflow'].username)
         self.assertEqual('password', datasources['dataflow'].password)
-        self.assertEqual('jdbc:postgresql://host:5432/scdf1234', datasources['dataflow'].url)
+        self.assertEqual('jdbc:postgresql://host:5432/scdf1234?user=user&password=password',
+                         datasources['dataflow'].url)
 
         env = datasources['skipper'].as_env()
-        self.assertEqual('"jdbc:postgresql://host:5432/skipper5678"', env.get('SPRING_DATASOURCE_URL'))
+        self.assertEqual('"jdbc:postgresql://host:5432/skipper5678?user=user&password=password"',
+                         env.get('SPRING_DATASOURCE_URL'))
         self.assertEqual('user', env.get('SPRING_DATASOURCE_USERNAME'))
         self.assertEqual('password', env.get('SPRING_DATASOURCE_PASSWORD'))
         self.assertEqual('org.postgresql.Driver', env.get('SPRING_DATASOURCE_DRIVER_CLASS_NAME'))
 
         db_config = postgres_env({'SQL_SKIPPER_DB_NAME': ''})
+        datasources = init_db(db_config)
         self.assertEqual(db_config.dataflow_db_name, db_config.skipper_db_name)
         self.assertEqual('scdf1234', db_config.dataflow_db_name)
-        self.assertEqual(datasources['dataflow'].url,datasources['skipper'])
-        self.assertEqual('jdbc:postgresql://host:5432/scdf1234', datasources['skipper'].url)
+        self.assertEqual(datasources['dataflow'].url, datasources['skipper'].url)
+        self.assertEqual('jdbc:postgresql://host:5432/scdf1234?user=user&password=password', datasources['skipper'].url)
 
     def test_oracle_datasource_config(self):
         datasources = init_db(oracle_env())

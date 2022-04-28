@@ -132,8 +132,11 @@ def init_db(db_config, initialize_db=False):
         driver_class_name = 'org.postgresql.Driver'
         logger.debug("Building postgres url with dataflow_db_name=%s and skipper_db_name=%s" % (
             db_config.dataflow_db_name, db_config.skipper_db_name))
-        skipper_url = "jdbc:postgresql://%s:%d/%s" % (db_config.host, int(db_config.port), db_config.skipper_db_name)
-        dataflow_url = "jdbc:postgresql://%s:%d/%s" % (db_config.host, int(db_config.port), db_config.dataflow_db_name)
+        skipper_url = "jdbc:postgresql://%s:%d/%s?user=%s&password=%s" % (
+            db_config.host, int(db_config.port), db_config.skipper_db_name, db_config.username, db_config.password)
+        dataflow_url = "jdbc:postgresql://%s:%d/%s?user=%s&password=%s" % \
+                       (db_config.host, int(db_config.port), db_config.dataflow_db_name, db_config.username,
+                        db_config.password)
         return {
             "dataflow": DatasourceConfig(url=dataflow_url,
                                          name=db_config.dataflow_db_name,
