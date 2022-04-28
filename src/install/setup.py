@@ -25,7 +25,7 @@ from cloudfoundry.platform.config.service import ServiceConfig
 from install import enable_debug_logging
 from install.db import init_db
 from cloudfoundry.platform.registration import register_apps
-from install.util import masked
+from install.util import masked, setup_certs
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ def setup(args):
         else:
             logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % installation.config_props.platform)
         dataflow_uri = runtime_properties['SERVER_URI']
-
+        setup_certs(installation.config_props.cert_host)
         register_apps(cf, installation, dataflow_uri)
         return runtime_properties
     except SystemExit:

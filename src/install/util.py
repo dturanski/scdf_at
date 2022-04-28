@@ -14,12 +14,17 @@ Copyright 2022 the original author or authors.
 __author__ = 'David Turanski'
 
 import logging
+import os
+import shutil
 import time
 import traceback
+from os.path import exists
 
 import requests
 import json
 from urllib.parse import urlparse, urlunparse
+
+from install.shell import Shell
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +32,7 @@ logger = logging.getLogger(__name__)
 def get_traceback(e):
     lines = traceback.format_exception(type(e), e, e.__traceback__)
     return ''.join(lines)
+
 
 class Poller:
     def __init__(self, wait_sec, max_retries):
@@ -104,3 +110,31 @@ def mask(k, v):
         if secret in k.lower():
             return "*" * 8 if v else None
     return v
+
+
+def setup_certs(cert_host, shell=Shell()):
+    import_certs = './import_uaa_certs.sh'
+    logger.debug("importing the cert_host certificate for %s to a JDK trust-store" % cert_host)
+    proc = shell.exec("%s %s" % (import_certs, cert_host), capture_output=False)
+    if proc.returncode > 0:
+        raise RuntimeError("%s failed")
+
+    java_home = os.getenv('JAVA_HOME')
+    if not java_home:
+        raise ValueError('JAVA_HOME is not set')
+    # The cacerts location is different for Java 8 and 11.
+    # Java 1.8
+    jre_cacerts = "%s/jre/lib/security/cacerts" % java_home
+    if not exists(jre_cacerts):
+        logger.info("%s does not exist" % jre_cacerts)
+        # Java 11
+        jre_cacerts = "%s/lib/security/cacerts" % java_home
+        logger.info("trying %s" % jre_cacerts)
+    if not exists(jre_cacerts):
+        raise RuntimeError("%s does not exist" % jre_cacerts)
+    shutil.copyfile(jre_cacerts, 'mycacerts')
+    proc = shell.exec(
+        '%s/bin/keytool -import -alias myNewCertificate -file %s.cer -noprompt -keystore mycacerts -storepass changeit'
+        % (java_home, cert_host), capture_output=False)
+    if proc.returncode > 0:
+        raise RuntimeError("Unable to create keystore ' %s" % shell.stdout_to_s(proc))

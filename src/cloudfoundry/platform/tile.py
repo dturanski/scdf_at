@@ -56,42 +56,13 @@ def configure_dataflow_service(installation):
         dataflow_tile_configuration.update({'scheduler': {'name': scheduler.name, 'plan': scheduler.plan}})
     if installation.db_config:
         if installation.dataflow_config.streams_enabled:
-            dataflow_tile_configuration['skipper-relational'] = user_provided(installation.datasources_config.get('skipper'))
+            dataflow_tile_configuration['skipper-relational'] = user_provided(
+                installation.datasources_config.get('skipper'))
         if installation.dataflow_config.tasks_enabled:
-            dataflow_tile_configuration['relational-data-service'] = user_provided(installation.datasources_config.get('dataflow'))
+            dataflow_tile_configuration['relational-data-service'] = user_provided(
+                installation.datasources_config.get('dataflow'))
     logger.debug("dataflow_tile_configuration:\n%s" % masked(dataflow_tile_configuration))
     return dataflow_tile_configuration
-
-
-def setup_certs(cert_host, shell=Shell()):
-    logger.debug("importing the cert_host certificate for %s to a JDK trust-store" % cert_host)
-    proc = shell.exec(
-        'openssl s_client -connect %s:443 -showcerts > %s.cer < /dev/null' % (cert_host, cert_host), capture_output=False)
-    if proc.returncode > 0:
-        shell.log_command(proc)
-        if not exists("%s.cer" % cert_host):
-            raise RuntimeError("openssl command failed")
-        logger.warning('openssl command returns a non zero status, but seemed to work anyway')
-
-    java_home = os.getenv('JAVA_HOME')
-    if not java_home:
-        raise ValueError('JAVA_HOME is not set')
-    # The cacerts location is different for Java 8 and 11.
-    # Java 1.8
-    jre_cacerts = "%s/jre/lib/security/cacerts" % java_home
-    if not exists(jre_cacerts):
-        logger.info("%s does not exist" % jre_cacerts)
-        # Java 11
-        jre_cacerts = "%s/lib/security/cacerts" % java_home
-        logger.info("trying %s" % jre_cacerts)
-    if not exists(jre_cacerts):
-        raise RuntimeError("%s does not exist" % jre_cacerts)
-    shutil.copyfile(jre_cacerts, 'mycacerts')
-    proc = shell.exec(
-        '%s/bin/keytool -import -alias myNewCertificate -file %s.cer -noprompt -keystore mycacerts -storepass changeit'
-        % (java_home, cert_host), capture_output=False)
-    if proc.returncode > 0:
-        raise RuntimeError("Unable to create keystore ' %s" % shell.stdout_to_s(proc))
 
 
 def user_provided(datasource_config):
