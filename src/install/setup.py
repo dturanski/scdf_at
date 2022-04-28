@@ -88,7 +88,8 @@ def setup(args):
             runtime_properties = standalone.setup(cf, installation, options.do_not_download)
         else:
             logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % installation.config_props.platform)
-        dataflow_uri = runtime_properties['SERVER_URI']
+
+        dataflow_uri = runtime_properties['SPRING_CLOUD_DATAFLOW_CLIENT_SERVER_URI']
         setup_certs(installation.config_props.cert_host)
         register_apps(cf, installation, dataflow_uri)
         return runtime_properties
