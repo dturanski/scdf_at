@@ -69,6 +69,7 @@ def setup_certs(cert_host, shell=Shell()):
         'openssl s_client -connect %s:443 -showcerts > %s.cer < /dev/null' % (cert_host, cert_host))
     if proc.returncode > 0:
         logger.warning('openssl command returns a non zero status, but seems to work anyway')
+
     java_home = os.getenv('JAVA_HOME')
     if not java_home:
         raise ValueError('JAVA_HOME is not set')
@@ -85,7 +86,7 @@ def setup_certs(cert_host, shell=Shell()):
     shutil.copyfile(jre_cacerts, 'mycacerts')
     proc = shell.exec(
         '%s/bin/keytool -import -alias myNewCertificate -file %s.cer -noprompt -keystore mycacerts -storepass changeit'
-        % (java_home, cert_host))
+        % (java_home, cert_host), capture_output=False)
     if proc.returncode > 0:
         raise RuntimeError("Unable to create keystore ' %s" % shell.stdout_to_s(proc))
 
