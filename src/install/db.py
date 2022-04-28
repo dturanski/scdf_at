@@ -126,7 +126,7 @@ def init_db(db_config, initialize_db=False):
     if db_config.provider.is_postrgesql():
         if initialize_db:
             init_postgres_db(db_config, db_config.dataflow_db_name)
-            if db_config.skipper_db_name_db_name != db_config.dataflow_db_name:
+            if db_config.skipper_db_name != db_config.dataflow_db_name:
                 init_postgres_db(db_config, db_config.skipper_db_name)
 
         driver_class_name = 'org.postgresql.Driver'
