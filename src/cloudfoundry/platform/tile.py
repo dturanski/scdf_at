@@ -69,7 +69,7 @@ def setup_certs(cert_host, shell=Shell()):
         'openssl s_client -connect %s:443 -showcerts > %s.cer < /dev/null' % (cert_host, cert_host), capture_output=False)
     if proc.returncode > 0:
         shell.log_command(proc)
-        if not exists("%.cer" % cert_host):
+        if not exists("%s.cer" % cert_host):
             raise RuntimeError("openssl command failed")
         logger.warning('openssl command returns a non zero status, but seemed to work anyway')
 
