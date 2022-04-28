@@ -216,7 +216,7 @@ class CloudFoundry:
                 raise RuntimeError("FATAL: Failed to create service key %s %s" % (service_name, key_name))
             return self.service_key(service_name, key_name)
         else:
-            logger.info("service key % %s already exists" % (service_name, key_name))
+            logger.info("service key %s %s already exists" % (service_name, key_name))
             return None
 
     def delete_service_key(self, service_name, key_name):
