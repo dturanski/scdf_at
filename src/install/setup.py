@@ -54,7 +54,6 @@ def setup(args):
         add_options_for_platform(parser, installation.config_props.platform)
         options, arguments = parser.parse_args(args)
         if options.debug:
-
             enable_debug_logging()
 
         logger.debug("Setup using config:\n%s" % masked(installation))
@@ -66,10 +65,10 @@ def setup(args):
         if installation.db_config:
             installation.datasources_config = init_db(installation.db_config, options.initialize_db)
 
+        # Schreduler applies to any platform
         if installation.services_config.get('scheduler'):
             ensure_required_services(cf, dict(
                 filter(lambda entry: entry[0] == 'scheduler', installation.services_config.items())))
-            installation.remove_required_service('scheduler')
             logger.debug("getting scheduler_url from service_key")
             service_name = installation.services_config['scheduler'].name
             key_name = installation.config_props.service_key_name
@@ -87,7 +86,8 @@ def setup(args):
         elif installation.config_props.platform == "cloudfoundry":
             runtime_properties = standalone.setup(cf, installation, options.do_not_download)
         else:
-            logger.error("invalid platform type %s should be in [cloudfoundry,tile]" % installation.config_props.platform)
+            logger.error(
+                "invalid platform type %s should be in [cloudfoundry,tile]" % installation.config_props.platform)
 
         dataflow_uri = runtime_properties['SPRING_CLOUD_DATAFLOW_CLIENT_SERVER_URI']
         setup_certs(installation.config_props.cert_host)

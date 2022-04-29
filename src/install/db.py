@@ -92,7 +92,14 @@ def init_oracle_db(db_config, username):
             for row in cur.fetchall():
                 logger.debug("killing session " + str(row))
                 cur.execute("ALTER SYSTEM kill session '%s,%s' immediate" % row)
-            cur.execute("DROP USER %s CASCADE" % username)
+            # TODO: check if user exists
+
+            cur.execute("SELECT COUNT(*) FROM dba_users WHERE username=%s" % username)
+            count = int(cur.fetchone())
+            if count:
+                logger.debug("Dropping user %s" % username)
+                cur.execute("DROP USER %s CASCADE" % username)
+            logger.debug("Creating user %s" % username)
             cur.execute("CREATE USER %s IDENTIFIED BY %s" % (username, db_config.password))
             cur.execute("GRANT ALL PRIVILEGES TO %s" % username)
             conn.commit()
