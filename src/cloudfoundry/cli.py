@@ -39,7 +39,7 @@ class CloudFoundry:
             logger.debug("logging in to CF - api: %s org: %s space: %s" % (
                 deployer_config.api_endpoint, deployer_config.org, deployer_config.space))
             proc = cf.login()
-            if proc.returncode != 0:
+            if proc.returncode:
                 logger.error("CF login failed: " + Shell.stdout_to_s(proc))
                 cf.logout()
                 raise RuntimeError(
@@ -81,11 +81,15 @@ class CloudFoundry:
                 target.get('org') == deployer_config.org and target.get('space') == deployer_config.space):
             logger.info(
                 "targeting configured environment: org = %s space = %s" % (deployer_config.org, deployer_config.space))
-            proc = self.target(org=deployer_config.org, space=deployer_config.space)
+            proc = self.target(org=deployer_config.org)
             if proc.returncode:
-                raise RuntimeError("unable to log in to CF environment")
+                raise RuntimeError("Unable to target org %s" % deployer_config.org)
+            proc = self.target(space=deployer_config.space)
+            if proc.returncode:
+                self.create_space(deployer_config.space)
             target = self.current_target()
-        elif target and target.get('api endpoint') == deployer_config.api_endpoint and \
+
+        if target and target.get('api endpoint') == deployer_config.api_endpoint and \
                 target.get('org') == deployer_config.org and target.get('space') == deployer_config.space:
             CloudFoundry.initialized = True
 
@@ -304,3 +308,9 @@ class CloudFoundry:
             logger.error("failed to get oauth-token: %s" % contents)
             return None
         return contents.rstrip('\n')
+
+    def create_space(self, space):
+        logger.info("creating space %s" % space)
+        proc = self.shell.exec("cf create-space %s" % space)
+        if proc.returncode:
+            raise RuntimeError("Unable to create space %s" % space)

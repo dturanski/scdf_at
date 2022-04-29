@@ -71,4 +71,4 @@ if [[ $? > 0 ]]; then
   exit 1
 fi
 load_file "cf_scdf.properties"
-echo "SERVER_URI=$SERVER_URI"
+echo "SERVER_URI=$SPRING_CLOUD_DATAFLOW_CLIENT_SERVER_URI"

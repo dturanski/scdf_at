@@ -94,8 +94,8 @@ def init_oracle_db(db_config, username):
                 cur.execute("ALTER SYSTEM kill session '%s,%s' immediate" % row)
             # TODO: check if user exists
 
-            cur.execute("SELECT COUNT(*) FROM dba_users WHERE username='%s'" % username)
-            count = int(cur.fetchone())
+            cur.execute("SELECT COUNT(*) FROM dba_users WHERE username='%s'" % username.upper())
+            count = cur.fetchone()[0]
             if count:
                 logger.debug("Dropping user %s" % username)
                 cur.execute("DROP USER %s CASCADE" % username)
