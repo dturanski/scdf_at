@@ -189,11 +189,12 @@ export SPRING_CLOUD_DEPLOYER_CLOUDFOUNDRY_PASSWORD=password
 # in place of rabbit and SQL. Services are automatically removed when analyzing the aggregate environment.
 #
 ### SQL Service to bind to skipper and dataflow if no external datasource configured
-#export CF_SERVICE_SQL_SERVICE='{"sql":{"name":"mysql", "service":"p.mysql","plan":"db-small"}'
-#export CF_SERVICE_RABBIT='{"rabbit":{"name":"rabbit","service":"p.rabbitmq","plan":"single-node"}'
-#export CF_SERVICE_SCHEDULER='{"scheduler":{name":"ci-scheduler", "service":"scheduler-for-pcf","plan":"standard"}'
-#export CF_SERVICE_CONFIG='{"config":{"name""config-server":"p.config-server","plan":"standard"}'
-#export CF_SERVICE_DATAFLOW='{"dataflow":{"name":"dataflow","service":"p.dataflow","plan":"standard"}'
+### property name can be anything prefixed with 'CF_SERVICE'
+#export CF_SERVICE_SQL_SERVICE='{"sql":{"name":"mysql", "service":"p.mysql","plan":"db-small"}}'
+#export CF_SERVICE_RABBIT='{"rabbit":{"name":"rabbit","service":"p.rabbitmq","plan":"single-node"}}'
+#export CF_SERVICE_SCHEDULER='{"scheduler":{name":"ci-scheduler", "service":"scheduler-for-pcf","plan":"standard"}}'
+#export CF_SERVICE_CONFIG='{"config":{"name""config-server":"p.config-server","plan":"standard"}}'
+#export CF_SERVICE_DATAFLOW='{"dataflow":{"name":"dataflow","service":"p.dataflow","plan":"standard"}}'
 #
 # App Registrion
 #

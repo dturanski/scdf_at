@@ -22,11 +22,12 @@ logger = logging.getLogger(__name__)
 class EnvironmentAware(JSonEnabled):
     @classmethod
     def set_if_present(cls, env, obj_as_dict, converters={}):
+        default_converter = converters.get("*")
         kwargs = {}
         for key in obj_as_dict.keys():
             val = env.get(key.upper())
             if val:
-                converter = converters.get(key)
+                converter = converters.get(key) if converters.get(key) else default_converter
                 kwargs[key] = converter(val) if converter else val
         return kwargs
 

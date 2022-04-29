@@ -29,9 +29,16 @@ class CloudFoundryServicesConfig(EnvironmentAware):
     @classmethod
     def from_env_vars(cls, env=os.environ):
         services = cls.env_vars(env, cls.prefix)
+        services = {k: json.loads(services[k]) for k in services.keys()}
+        print(services)
         cf_services = {}
-        for service in services:
-            cf_services[service.name] = ServiceConfig.of_service(service)
+        for service in services.values():
+            if len(service.keys()) > 1:
+                raise ValueError("expecting a singleton map %s", str(service))
+            for service_type in service.keys():
+                cf_services[service_type] = ServiceConfig(name=service[service_type].get('name'),
+                                                          plan=service[service_type].get('plan'),
+                                                          service=service[service_type].get('service'))
         return cf_services if cf_services else cls.defaults()
 
     @classmethod
@@ -60,6 +67,14 @@ class ServiceConfig(EnvironmentAware):
 
     @classmethod
     def of_service(cls, service):
+        """
+
+        Args:
+            service: A parsed CF service
+
+        Returns:
+
+        """
         return ServiceConfig(name=service.name, service=service.service, plan=service.plan)
 
     @classmethod
